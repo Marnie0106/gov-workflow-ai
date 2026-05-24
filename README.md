@@ -1,25 +1,25 @@
 # 市容巡查一体化系统 (gov-workflow-ai)
 
-基于 React + Express + SQLite + DeepSeek AI 的政府市容巡查全流程管理系统。
+基于 React + Express + SQLite + AI 的政府市容巡查全流程管理系统。
 
 ## 功能特性
 
-- **市民端**：手机号登录、工单上报、留言沟通、服务评价
-- **处置员端**：工单接收/处理、状态流转、AI 处置建议、留言互动
-- **管理员端**：工单全生命周期管理、流程模板 CRUD、AI 智能生成流程
+- **市民端**：手机号登录、工单上报、照片上传、留言沟通、服务评价
+- **处置员端**：工单接收/处理、状态流转、AI 处置建议、内部协作、留言互动
+- **管理员端**：工单全生命周期管理、流程模板 CRUD、AI 智能生成流程、内部协作
 - **领导看板**：核心指标统计、ECharts 图表可视化（工单趋势/分类/处理时长/满意度）
-- **AI 能力**：DeepSeek-V3 驱动的工单重复/模糊检测、部门推荐、处置建议、流程生成
+- **AI 能力**：工单重复/模糊检测、部门推荐、处置建议、流程生成
 
 ## 技术栈
 
 | 层级 | 技术 |
 |------|------|
-| 前端 | React 19 + Vite 8 + JSX + react-router-dom v7 |
+| 前端 | React 19 + Vite + JSX + react-router-dom v7 |
 | UI | react-icons + echarts + reactflow |
 | HTTP | axios |
 | 后端 | Node.js + Express 5 |
 | 数据库 | SQLite3（workflow.db） |
-| AI | DeepSeek-V3（通过硅基流动 SiliconFlow API） |
+| AI | 大语言模型（兼容 OpenAI Chat Completions API 格式） |
 
 ## 快速开始
 
@@ -46,19 +46,29 @@ npm install
 cd ..
 ```
 
-### 配置 AI（可选）
+### 配置 AI 服务（可选）
 
-后端 AI 功能需要 SiliconFlow API 密钥：
+系统支持任何兼容 OpenAI Chat Completions API 格式的大语言模型服务。
 
 ```bash
-# 复制环境变量模板
+# 1. 复制环境变量模板
 cp backend/.env.example backend/.env
 
-# 编辑 .env，填入你的 API 密钥
-# DEEPSEEK_API_KEY=sk-xxxxxxxx
+# 2. 编辑 .env，填入你的配置
+AI_API_KEY=你的API密钥
+AI_API_URL=你的API服务地址
+AI_MODEL=你使用的模型名称
 ```
 
-> 不配置 API 密钥不影响系统其他功能的正常使用，AI 相关功能会返回默认兜底结果。
+> 推荐使用 [硅基流动](https://siliconflow.cn) 平台，注册即送免费额度，兼容 OpenAI 格式，配置示例：
+>
+> ```
+> AI_API_KEY=sk-xxxxxxxx
+> AI_API_URL=https://api.siliconflow.cn/v1/chat/completions
+> AI_MODEL=deepseek-ai/DeepSeek-V3
+> ```
+
+> 不配置 AI 服务不影响系统其他功能，AI 相关功能会返回默认兜底结果。
 
 ### 启动
 
@@ -86,18 +96,18 @@ npm run dev
 
 | 账号 | 验证码 |
 |------|--------|
-| 12345678900 | 123456 |
+| 任意 11 位手机号 | 123456 |
 
-> 任意 11 位手机号均可注册，验证码固定为 `123456`（演示用）。
+> 验证码固定为 `123456`（演示用）。
 
-### 系统角色（一键登录）
+### 政务人员（工号登录）
 
-| 用户名 | 角色 | 显示名 |
-|--------|------|--------|
-| dispatcher1 | 处置人员 | 王强 |
-| dispatcher2 | 处置人员 | 赵芳 |
-| admin1 | 管理员 | 李明 |
-| leader1 | 领导 | 张华 |
+| 工号 | 角色 | 姓名 |
+|------|------|------|
+| D001 | 处置人员 | 王强 |
+| D002 | 处置人员 | 赵芳 |
+| A001 | 管理员 | 李明 |
+| L001 | 领导 | 张华 |
 
 ## 项目结构
 
@@ -106,9 +116,10 @@ gov-workflow-ai/
 ├── backend/
 │   ├── server.js          # Express 主入口，全部 REST API
 │   ├── db.js              # SQLite 数据库模块（建表/CRUD/种子数据）
-│   ├── agents.js          # DeepSeek AI 分析模块
+│   ├── agents.js          # AI 智能分析模块
 │   ├── routes/
 │   │   └── citizen.js     # 市民路由（验证码/登录）
+│   ├── uploads/           # 用户上传的图片（.gitignore 保护）
 │   ├── .env.example       # 环境变量模板
 │   └── package.json
 ├── frontend/
@@ -119,13 +130,13 @@ gov-workflow-ai/
 │   │   ├── components/    # 公共组件（NavBar/Banner/Layout）
 │   │   └── pages/         # 页面组件
 │   │       ├── LoginPage.jsx
-│   │       ├── CitizenPage.jsx
 │   │       ├── DispatcherPage.jsx
 │   │       ├── ProcessAdminPage.jsx
 │   │       ├── LeaderPage.jsx
 │   │       └── citizen/   # 市民子组件
 │   ├── public/
 │   └── package.json
+├── 政务人员信息导入说明.md
 ├── start.bat              # Windows 一键启动脚本
 └── README.md
 ```
@@ -134,11 +145,13 @@ gov-workflow-ai/
 
 后端运行在 `http://localhost:3001`，主要接口：
 
-- `POST /api/login` - 系统用户登录
-- `POST /api/citizen/login` - 市民手机号登录
+- `POST /api/login` - 系统用户登录（支持工号）
+- `POST /api/sms/send` - 发送短信验证码
+- `POST /api/sms/verify` - 验证短信验证码
 - `GET/POST /api/tickets` - 工单列表/创建
 - `POST /api/tickets/:id/dispatch` - 派单
-- `GET/POST /api/messages` - 留言
+- `GET/POST /api/messages` - 留言（含内部协作）
+- `POST /api/upload` - 图片上传
 - `POST /api/evaluations` - 评价
 - `GET /api/statistics` - 统计数据
 - `GET/POST /api/flow-templates` - 流程模板
