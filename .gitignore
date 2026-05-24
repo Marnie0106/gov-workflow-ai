@@ -12,6 +12,10 @@ package-lock.json
 *.sqlite
 *.sqlite3
 
+# Uploaded files (user photos - do not commit)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
 # Build output
 dist/
 dist-ssr/

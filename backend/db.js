@@ -50,24 +50,43 @@ function initDatabase() {
 
     // ========== 2. users 表（系统登录用户，非市民）==========
     db.run(`CREATE TABLE IF NOT EXISTS users (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      username   TEXT    UNIQUE NOT NULL,
-      password   TEXT    NOT NULL DEFAULT '123456',
-      role_key   TEXT    NOT NULL REFERENCES roles(role_key),
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      username     TEXT    UNIQUE NOT NULL,
+      employee_id  TEXT    UNIQUE,
+      password     TEXT    NOT NULL DEFAULT '123456',
+      role_key     TEXT    NOT NULL REFERENCES roles(role_key),
       display_name TEXT,
-      created_at TEXT
+      department   TEXT,
+      created_at   TEXT
     )`);
 
-    // 预置演示用户
-    const users = [
-      ['dispatcher1',  'dispatcher',    '处置员王强'],
-      ['dispatcher2',  'dispatcher',    '处置员赵芳'],
-      ['admin1',       'process_admin', '管理员李明'],
-      ['leader1',      'leader',        '领导张华'],
+    // 迁移旧 users 表：添加缺失列
+    const userAlterStatements = [
+      `ALTER TABLE users ADD COLUMN employee_id TEXT`,
+      `ALTER TABLE users ADD COLUMN department  TEXT`,
     ];
-    users.forEach(([username, role, displayName]) => {
-      db.run(`INSERT OR IGNORE INTO users (username, role_key, display_name, created_at)
-              VALUES (?, ?, ?, datetime('now'))`, [username, role, displayName]);
+    userAlterStatements.forEach(sql => {
+      db.run(sql, err => {
+        if (err && !err.message.includes('duplicate column')) {
+          // ignore
+        }
+      });
+    });
+
+    // 预置演示用户（username = 工号 = employee_id，演示简化）
+    // 格式：[username, employee_id, role_key, display_name, department]
+    const users = [
+      ['dispatcher1', 'D001', 'dispatcher',    '王强', '城管执法队一分队'],
+      ['dispatcher2', 'D002', 'dispatcher',    '赵芳', '城管执法队二分队'],
+      ['admin1',      'A001', 'process_admin', '李明', '业务流程管理科'],
+      ['leader1',     'L001', 'leader',        '张华', '市容管理局'],
+    ];
+    users.forEach(([username, empId, role, displayName, dept]) => {
+      db.run(`INSERT OR IGNORE INTO users (username, employee_id, role_key, display_name, department, created_at)
+              VALUES (?, ?, ?, ?, ?, datetime('now'))`, [username, empId, role, displayName, dept]);
+      // 为已存在的用户补充 employee_id
+      db.run(`UPDATE users SET employee_id=?, department=? WHERE username=? AND employee_id IS NULL`,
+        [empId, dept, username]);
     });
 
     // ========== 3. tickets 表（工单）==========
@@ -94,7 +113,8 @@ function initDatabase() {
       flow_template_id INTEGER,
       flow_progress    TEXT,
       occurred_at      TEXT,
-      completed_at     TEXT
+      completed_at     TEXT,
+      photo_urls       TEXT
     )`);
 
     // 迁移旧表：添加缺失列（已存在则忽略）
@@ -107,6 +127,7 @@ function initDatabase() {
       `ALTER TABLE tickets ADD COLUMN flow_progress   TEXT`,
       `ALTER TABLE tickets ADD COLUMN occurred_at     TEXT`,
       `ALTER TABLE tickets ADD COLUMN completed_at    TEXT`,
+      `ALTER TABLE tickets ADD COLUMN photo_urls      TEXT`,
     ];
     alterStatements.forEach(sql => {
       db.run(sql, err => {
@@ -147,9 +168,16 @@ function initDatabase() {
       sender_name  TEXT    NOT NULL,
       content      TEXT    NOT NULL,
       is_read      INTEGER DEFAULT 0,
+      is_internal  INTEGER DEFAULT 0,
       created_at   TEXT,
       FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
     )`);
+    // 迁移：添加 is_internal 字段
+    db.run(`ALTER TABLE messages ADD COLUMN is_internal INTEGER DEFAULT 0`, err => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('[db] messages迁移失败:', err.message);
+      }
+    });
 
     // ========== 7. evaluations 表（评价）==========
     db.run(`CREATE TABLE IF NOT EXISTS evaluations (
@@ -421,9 +449,9 @@ function createTicket(data, callback) {
   const finalOccurredAt = occurred_at || createdAt;
 
   db.run(`INSERT INTO tickets
-    (title, content, location, reporter, citizen_id, source, status, currentNode, createdAt, occurred_at, dispatch_status)
-    VALUES (?,?,?,?,?,?, 'created', '工单创建', ?, ?, '待派单')`,
-    [title, content, location, reporter, citizen_id, source, createdAt, finalOccurredAt],
+    (title, content, location, reporter, citizen_id, source, status, currentNode, createdAt, occurred_at, dispatch_status, photo_urls)
+    VALUES (?,?,?,?,?,?, 'created', '工单创建', ?, ?, '待派单', ?)`,
+    [title, content, location, reporter, citizen_id, source, createdAt, finalOccurredAt, photo_urls || null],
     function(err) {
       if (err) return callback(err);
       callback(null, this.lastID);
@@ -526,27 +554,28 @@ function updateFlowProgress(ticketId, stepIndex, completed, callback) {
  */
 function queryMessages(filters = {}, callback) {
   const db = getDb();
-  const { ticketId, senderRole, isRead, limit = 200 } = filters;
+  const { ticketId, senderRole, isRead, limit = 200, is_internal } = filters;
   let sql = `SELECT * FROM messages WHERE 1=1`;
   const params = [];
   if (ticketId)  { sql += ` AND ticket_id = ?`;  params.push(ticketId); }
   if (senderRole) { sql += ` AND sender_role = ?`; params.push(senderRole); }
   if (isRead !== undefined) { sql += ` AND is_read = ?`; params.push(isRead); }
+  if (is_internal !== undefined) { sql += ` AND is_internal = ?`; params.push(is_internal); }
   sql += ` ORDER BY created_at ASC LIMIT ?`;
   params.push(limit);
   db.all(sql, params, callback);
 }
 
 /**
- * 添加留言
+ * 添加留言（支持内部消息 is_internal）
  */
 function addMessage(data, callback) {
   const db = getDb();
-  const { ticket_id, sender_role, sender_name, content } = data;
+  const { ticket_id, sender_role, sender_name, content, is_internal = 0 } = data;
   const created_at = new Date().toISOString();
   db.run(
-    `INSERT INTO messages (ticket_id, sender_role, sender_name, content, created_at) VALUES (?,?,?,?,?)`,
-    [ticket_id, sender_role, sender_name, content, created_at],
+    `INSERT INTO messages (ticket_id, sender_role, sender_name, content, is_internal, created_at) VALUES (?,?,?,?,?,?)`,
+    [ticket_id, sender_role, sender_name, content, is_internal ? 1 : 0, created_at],
     function(err) { callback(err, this.lastID); }
   );
 }
@@ -568,16 +597,34 @@ function markTicketMessagesRead(ticketId, callback) {
 }
 
 /**
- * 查询未读留言数量（按角色过滤）
+ * 查询未读留言数量（按角色+用户ID过滤，内部消息不显示给市民）
  */
-function countUnreadMessages(role, callback) {
+function countUnreadMessages(role, userId, callback) {
+  // 兼容旧版（只传role和callback两个参数）
+  if (typeof userId === 'function') {
+    callback = userId;
+    userId = null;
+  }
   const db = getDb();
   let sql = `SELECT COUNT(*) as cnt FROM messages WHERE is_read = 0`;
   const params = [];
   if (role === 'citizen') {
-    sql += ` AND sender_role IN ('dispatcher','admin','process_admin')`;
+    // 市民只看公开留言（非内部），且只看发给自己工单的
+    sql += ` AND is_internal = 0 AND sender_role IN ('dispatcher','admin','process_admin')`;
+    if (userId) {
+      sql += ` AND ticket_id IN (SELECT id FROM tickets WHERE citizen_id = ?)`;
+      params.push(String(userId));
+    }
   } else if (role === 'dispatcher') {
-    sql += ` AND sender_role = 'citizen'`;
+    // 处置员看：市民发来的公开消息 + 管理员发给处置员的内部消息
+    sql += ` AND (sender_role = 'citizen' OR (is_internal = 1 AND sender_role = 'process_admin'))`;
+    if (userId) {
+      sql += ` AND ticket_id IN (SELECT id FROM tickets WHERE assignee IN (SELECT display_name FROM users WHERE id = ?))`;
+      params.push(String(userId));
+    }
+  } else if (role === 'admin' || role === 'process_admin') {
+    // 管理员看内部消息（处置员发的）
+    sql += ` AND is_internal = 1 AND sender_role = 'dispatcher'`;
   }
   db.get(sql, params, (err, row) => {
     callback(err, row ? row.cnt : 0);

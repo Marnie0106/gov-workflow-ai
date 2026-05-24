@@ -3,9 +3,10 @@ import {
   getTickets, updateDispatchStatus, getFlowTemplates,
   saveFlowTemplate, deleteFlowTemplate, bindFlow,
   generateFlow, getDispatchers, dispatchTicket,
-  deleteTicket,
+  deleteTicket, getMessages, sendMessage,
 } from '../api';
 import { Card, Btn, Modal } from './citizen/ui';
+import { FaLock, FaComments } from 'react-icons/fa';
 
 /* ── 状态映射 ── */
 const DS_MAP = {
@@ -200,6 +201,18 @@ export default function ProcessAdminPage() {
 function AdminTicketRow({ ticket, dispatchers, templates, onRefresh }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [bindModal, setBindModal] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const [internalMsgs, setInternalMsgs] = useState([]);
+  const [internalDraft, setInternalDraft] = useState('');
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
+
+  const loadInternal = async () => {
+    setLoadingMsgs(true);
+    try {
+      const data = await getMessages({ ticketId: ticket.id, is_internal: 1 });
+      setInternalMsgs(Array.isArray(data) ? data : []);
+    } catch {} finally { setLoadingMsgs(false); }
+  };
 
   const handleDispatch = async () => {
     setActionLoading(true);
@@ -218,45 +231,134 @@ function AdminTicketRow({ ticket, dispatchers, templates, onRefresh }) {
     } catch {} finally { setActionLoading(false); }
   };
 
+  const handleSendInternal = async () => {
+    if (!internalDraft.trim()) return;
+    try {
+      await sendMessage({
+        ticket_id: ticket.id, sender_role: 'process_admin',
+        sender_name: getUserName(), content: internalDraft.trim(), is_internal: 1,
+      });
+      setInternalDraft('');
+      await loadInternal();
+    } catch {}
+  };
+
   const ds = ticket.dispatch_status || '待派单';
+
+  function fmtTime(ts) {
+    if (!ts) return '—';
+    const d = new Date(ts);
+    return `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
 
   return (
     <>
-      <div
-        style={{
-          background: '#fff', borderRadius: '12px', padding: '14px 18px',
-          border: '1px solid #e4e7ed', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-          display: 'flex', alignItems: 'center', gap: '14px',
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <span style={{ fontWeight: '600', fontSize: '14px', color: '#1a2a3a' }}>
+      <div style={{
+        background:'#fff', borderRadius:'12px', padding:'14px 18px',
+        border:'1px solid #e4e7ed', boxShadow:'0 1px 4px rgba(0,0,0,0.04)',
+        display:'flex', alignItems:'center', gap:'14px',
+      }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px' }}>
+            <span style={{ fontWeight:'600', fontSize:'14px', color:'#1a2a3a' }}>
               #{ticket.id} {ticket.title}
             </span>
             <StatusBadge status={ds} />
-            {ticket.isTimeout === 1 && <span style={{ color: '#E74C3C', fontSize: '11px', fontWeight: '700' }}>超时</span>}
-            {ticket.isDuplicate === 1 && <span style={{ color: '#E67E22', fontSize: '11px', fontWeight: '700' }}>重复</span>}
-            {ticket.isVague === 1 && <span style={{ color: '#8E44AD', fontSize: '11px', fontWeight: '700' }}>模糊</span>}
+            {ticket.isTimeout === 1 && <span style={{ color:'#E74C3C', fontSize:'11px', fontWeight:'700' }}>超时</span>}
+            {ticket.isDuplicate === 1 && <span style={{ color:'#E67E22', fontSize:'11px', fontWeight:'700' }}>重复</span>}
+            {ticket.isVague === 1 && <span style={{ color:'#8E44AD', fontSize:'11px', fontWeight:'700' }}>模糊</span>}
           </div>
-          <div style={{ fontSize: '12px', color: '#909399', display: 'flex', gap: '12px' }}>
+          <div style={{ fontSize:'12px', color:'#909399', display:'flex', gap:'12px' }}>
             <span>📍 {ticket.location}</span>
             <span>👤 {ticket.reporter}</span>
             {ticket.department && <span>🏢 {ticket.department}</span>}
             {ticket.assignee && <span>🔧 {ticket.assignee}</span>}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+        <div style={{ display:'flex', gap:'6px', flexShrink:0, alignItems:'center' }}>
           {ds === '待派单' && (
-            <Btn variant="primary" size="sm" onClick={handleDispatch} disabled={actionLoading}>
-              派单
-            </Btn>
+            <Btn variant="primary" size="sm" onClick={handleDispatch} disabled={actionLoading}>派单</Btn>
           )}
-          <Btn variant="ghost" size="sm" onClick={() => setBindModal(true)}>
-            绑定流程
-          </Btn>
+          <Btn variant="ghost" size="sm" onClick={() => setBindModal(true)}>绑定流程</Btn>
+          {/* 内部协作按钮 */}
+          <button
+            onClick={async () => { setInternalOpen(true); await loadInternal(); }}
+            title="与处置员内部沟通（市民不可见）"
+            style={{
+              background:'#fff8e1', border:'1.5px solid #f0ad4e', borderRadius:'8px',
+              padding:'5px 10px', cursor:'pointer', color:'#c87600',
+              display:'flex', alignItems:'center', gap:'5px', fontSize:'12px', fontWeight:'600',
+            }}
+          >
+            <FaLock size={11} />协作
+          </button>
         </div>
       </div>
+
+      {/* 内部协作弹窗 */}
+      <Modal
+        open={internalOpen}
+        onClose={() => setInternalOpen(false)}
+        title={`内部协作 — #${ticket.id} ${ticket.title}`}
+        footer={<Btn variant="ghost" onClick={() => setInternalOpen(false)}>关闭</Btn>}
+      >
+        <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+          <div style={{
+            display:'flex', alignItems:'center', gap:'6px', padding:'8px 12px',
+            background:'#fff8e1', border:'1px solid #ffd54f', borderRadius:'8px',
+            fontSize:'12px', color:'#f57c00',
+          }}>
+            <FaLock size={11} />此处消息仅管理员与处置员可见，市民不会看到
+          </div>
+          {/* 消息列表 */}
+          <div style={{ minHeight:'120px', maxHeight:'260px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'8px' }}>
+            {loadingMsgs ? (
+              <div style={{ textAlign:'center', color:'#c0c4cc', padding:'20px' }}>加载中…</div>
+            ) : internalMsgs.length === 0 ? (
+              <div style={{ textAlign:'center', color:'#c0c4cc', padding:'20px' }}>暂无内部消息</div>
+            ) : (
+              internalMsgs.map(m => (
+                <div key={m.id} style={{
+                  display:'flex',
+                  flexDirection: m.sender_role === 'process_admin' ? 'row-reverse' : 'row',
+                  alignItems:'flex-end', gap:'8px',
+                }}>
+                  <div style={{
+                    maxWidth:'75%',
+                    background: m.sender_role === 'process_admin' ? '#f57c00' : '#1658AF',
+                    color:'#fff',
+                    borderRadius: m.sender_role === 'process_admin' ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
+                    padding:'8px 12px', fontSize:'13px', lineHeight:1.5,
+                  }}>
+                    <div style={{ fontSize:'11px', opacity:0.8, marginBottom:'3px' }}>
+                      🔒 {m.sender_name} · {fmtTime(m.created_at)}
+                    </div>
+                    {m.content}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          {/* 输入框 */}
+          <div style={{ display:'flex', gap:'8px' }}>
+            <input
+              value={internalDraft} onChange={e => setInternalDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSendInternal(); }}
+              placeholder="发消息给处置员（内部可见）…"
+              style={{ flex:1, padding:'8px 12px', borderRadius:'8px', border:'1.5px solid #ffd54f', fontSize:'13px', outline:'none', fontFamily:'inherit', background:'#fffde7' }}
+            />
+            <button
+              onClick={handleSendInternal} disabled={!internalDraft.trim()}
+              style={{
+                padding:'8px 16px', borderRadius:'8px', border:'none', cursor: internalDraft.trim() ? 'pointer' : 'not-allowed',
+                background: internalDraft.trim() ? '#f57c00' : '#e4e7ed',
+                color: internalDraft.trim() ? '#fff' : '#909399',
+                fontSize:'13px', fontWeight:'600', flexShrink:0,
+              }}
+            >发送</button>
+          </div>
+        </div>
+      </Modal>
 
       {/* 绑定流程弹框 */}
       <BindFlowModal

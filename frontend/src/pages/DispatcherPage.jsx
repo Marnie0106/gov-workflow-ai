@@ -5,6 +5,7 @@ import {
   getAISuggestion, getDispatchers,
 } from '../api';
 import { Card, Btn, Modal, fmtTime } from './citizen/ui';
+import { FaComments, FaLock } from 'react-icons/fa';
 
 /* ── 状态映射 ── */
 const STATUS_MAP = {
@@ -164,24 +165,29 @@ export default function DispatcherPage() {
 function TicketDetailCard({ ticket, flowTemplates, onStatusChange }) {
   const [expanded, setExpanded] = useState(false);
   const [msgs, setMsgs] = useState([]);
+  const [internalMsgs, setInternalMsgs] = useState([]);
   const [msgDraft, setMsgDraft] = useState('');
+  const [internalDraft, setInternalDraft] = useState('');
+  const [showInternal, setShowInternal] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [loadingAI, setLoadingAI] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
   const loadMessages = async () => {
     try {
-      const data = await getMessages({ ticketId: ticket.id });
-      setMsgs(Array.isArray(data) ? data : []);
+      const [pub, internal] = await Promise.all([
+        getMessages({ ticketId: ticket.id, is_internal: 0 }),
+        getMessages({ ticketId: ticket.id, is_internal: 1 }),
+      ]);
+      setMsgs(Array.isArray(pub) ? pub : []);
+      setInternalMsgs(Array.isArray(internal) ? internal : []);
     } catch {}
   };
 
   const toggleExpand = async () => {
     const next = !expanded;
     setExpanded(next);
-    if (next) {
-      await loadMessages();
-    }
+    if (next) await loadMessages();
   };
 
   // 状态变更
@@ -192,22 +198,31 @@ function TicketDetailCard({ ticket, flowTemplates, onStatusChange }) {
       onStatusChange();
     } catch (err) {
       console.error('状态更新失败:', err);
-    } finally {
-      setActionLoading(false);
-    }
+    } finally { setActionLoading(false); }
   };
 
-  // 发送留言
+  // 发送公开留言（市民可见）
   const handleSendMsg = async () => {
     if (!msgDraft.trim()) return;
     try {
       await sendMessage({
-        ticket_id: ticket.id,
-        sender_role: 'dispatcher',
-        sender_name: getUserName(),
-        content: msgDraft.trim(),
+        ticket_id: ticket.id, sender_role: 'dispatcher',
+        sender_name: getUserName(), content: msgDraft.trim(), is_internal: 0,
       });
       setMsgDraft('');
+      await loadMessages();
+    } catch {}
+  };
+
+  // 发送内部消息（仅管理员可见）
+  const handleSendInternal = async () => {
+    if (!internalDraft.trim()) return;
+    try {
+      await sendMessage({
+        ticket_id: ticket.id, sender_role: 'dispatcher',
+        sender_name: getUserName(), content: internalDraft.trim(), is_internal: 1,
+      });
+      setInternalDraft('');
       await loadMessages();
     } catch {}
   };
@@ -220,47 +235,19 @@ function TicketDetailCard({ ticket, flowTemplates, onStatusChange }) {
       setAiSuggestion(result.suggestion || '暂无建议');
     } catch {
       setAiSuggestion('AI 暂时不可用');
-    } finally {
-      setLoadingAI(false);
-    }
+    } finally { setLoadingAI(false); }
   };
 
   const ds = ticket.dispatch_status || '待派单';
 
-  // 按钮组（根据状态显示不同操作）
   const renderActions = () => {
-    if (ds === '待派单') {
-      return (
-        <Btn variant="primary" size="sm" onClick={() => handleStatusChange('派单中')} disabled={actionLoading}>
-          开始派单
-        </Btn>
-      );
-    }
-    if (ds === '派单中') {
-      return (
-        <Btn variant="success" size="sm" onClick={() => handleStatusChange('已接受')} disabled={actionLoading}>
-          接受工单
-        </Btn>
-      );
-    }
-    if (ds === '已接受') {
-      return (
-        <Btn variant="primary" size="sm" onClick={() => handleStatusChange('处理中')} disabled={actionLoading}>
-          开始处置
-        </Btn>
-      );
-    }
-    if (ds === '处理中') {
-      return (
-        <Btn variant="warning" size="sm" onClick={() => handleStatusChange('已完结')} disabled={actionLoading}>
-          标记完结
-        </Btn>
-      );
-    }
-    return <span style={{ fontSize: '13px', color: '#909399' }}>已办结</span>;
+    if (ds === '待派单') return <Btn variant="primary" size="sm" onClick={() => handleStatusChange('派单中')} disabled={actionLoading}>开始派单</Btn>;
+    if (ds === '派单中') return <Btn variant="success" size="sm" onClick={() => handleStatusChange('已接受')} disabled={actionLoading}>接受工单</Btn>;
+    if (ds === '已接受') return <Btn variant="primary" size="sm" onClick={() => handleStatusChange('处理中')} disabled={actionLoading}>开始处置</Btn>;
+    if (ds === '处理中') return <Btn variant="warning" size="sm" onClick={() => handleStatusChange('已完结')} disabled={actionLoading}>标记完结</Btn>;
+    return <span style={{ fontSize:'13px', color:'#909399' }}>已办结</span>;
   };
 
-  // 流程进度
   const renderFlowProgress = () => {
     const progress = ticket.flow_progress;
     if (!progress || typeof progress !== 'object') return null;
@@ -268,19 +255,15 @@ function TicketDetailCard({ ticket, flowTemplates, onStatusChange }) {
     if (steps.length === 0) return null;
     const done = steps.filter(([, v]) => v).length;
     return (
-      <div style={{ marginTop: '12px' }}>
-        <div style={{ fontSize: '12px', color: '#606266', marginBottom: '6px' }}>
-          流程进度：{done}/{steps.length} 步
-        </div>
-        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+      <div style={{ marginTop:'12px' }}>
+        <div style={{ fontSize:'12px', color:'#606266', marginBottom:'6px' }}>流程进度：{done}/{steps.length} 步</div>
+        <div style={{ display:'flex', gap:'4px', flexWrap:'wrap' }}>
           {steps.map(([key, completed], idx) => (
             <span key={key} style={{
-              padding: '3px 8px', borderRadius: '6px', fontSize: '11px',
+              padding:'3px 8px', borderRadius:'6px', fontSize:'11px',
               background: completed ? '#E8F5E9' : '#f0f0f0',
               color: completed ? '#27AE60' : '#909399',
-            }}>
-              第{idx + 1}步 {completed ? '✓' : '○'}
-            </span>
+            }}>第{idx+1}步 {completed ? '✓' : '○'}</span>
           ))}
         </div>
       </div>
@@ -290,33 +273,49 @@ function TicketDetailCard({ ticket, flowTemplates, onStatusChange }) {
   return (
     <Card padding="16px 20px">
       {/* 主行 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <span style={{ fontWeight: '700', fontSize: '15px', color: '#1a2a3a' }}>
-              #{ticket.id} {ticket.title}
-            </span>
+      <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
+            <span style={{ fontWeight:'700', fontSize:'15px', color:'#1a2a3a' }}>#{ticket.id} {ticket.title}</span>
             <StatusBadge status={ds} />
-            {ticket.isTimeout === 1 && (
-              <span style={{ color: '#E74C3C', fontSize: '11px', fontWeight: '700' }}>⚠ 超时</span>
-            )}
-            {ticket.isDuplicate === 1 && (
-              <span style={{ color: '#E67E22', fontSize: '11px', fontWeight: '700' }}>🔄 重复</span>
-            )}
+            {ticket.isTimeout === 1 && <span style={{ color:'#E74C3C', fontSize:'11px', fontWeight:'700' }}>⚠ 超时</span>}
+            {ticket.isDuplicate === 1 && <span style={{ color:'#E67E22', fontSize:'11px', fontWeight:'700' }}>🔄 重复</span>}
           </div>
-          <div style={{ fontSize: '13px', color: '#606266', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ fontSize:'13px', color:'#606266', display:'flex', gap:'16px', flexWrap:'wrap' }}>
             <span>📍 {ticket.location}</span>
             <span>👤 {ticket.reporter}</span>
             <span>🕐 {fmtTime(ticket.createdAt)}</span>
             {ticket.department && <span>🏢 {ticket.department}</span>}
           </div>
-          <div style={{ fontSize: '13px', color: '#909399', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize:'13px', color:'#909399', marginTop:'4px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
             {ticket.content}
           </div>
           {renderFlowProgress()}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'8px', flexShrink:0 }}>
           {renderActions()}
+          {/* 内部协作按钮 */}
+          <button
+            onClick={async () => {
+              setShowInternal(true);
+              if (!expanded) { setExpanded(true); await loadMessages(); }
+              else await loadMessages();
+            }}
+            title="与管理员内部沟通"
+            style={{
+              background: internalMsgs.length > 0 ? '#e8f0fe' : 'rgba(22,88,175,0.08)',
+              border:'1.5px solid #1658AF', borderRadius:'8px',
+              padding:'6px 10px', cursor:'pointer', color:'#1658AF',
+              display:'flex', alignItems:'center', gap:'5px', fontSize:'12px', fontWeight:'600',
+            }}
+          >
+            <FaLock size={11} />内部协作
+            {internalMsgs.length > 0 && (
+              <span style={{ background:'#1658AF', color:'#fff', borderRadius:'10px', padding:'0 5px', fontSize:'10px', minWidth:'16px', textAlign:'center' }}>
+                {internalMsgs.length}
+              </span>
+            )}
+          </button>
           <Btn variant="ghost" size="sm" onClick={toggleExpand}>
             {expanded ? '收起' : '详情'}
           </Btn>
@@ -325,12 +324,12 @@ function TicketDetailCard({ ticket, flowTemplates, onStatusChange }) {
 
       {/* 展开详情 */}
       {expanded && (
-        <div style={{ marginTop: '16px', borderTop: '1px solid #f0f0f0', paddingTop: '16px' }}>
+        <div style={{ marginTop:'16px', borderTop:'1px solid #f0f0f0', paddingTop:'16px' }}>
           {/* AI 建议 */}
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '14px' }}>🤖</span>
-              <span style={{ fontWeight: '600', fontSize: '14px', color: '#1a2a3a' }}>AI 智能建议</span>
+          <div style={{ marginBottom:'16px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'8px' }}>
+              <span style={{ fontSize:'14px' }}>🤖</span>
+              <span style={{ fontWeight:'600', fontSize:'14px', color:'#1a2a3a' }}>AI 智能建议</span>
               {!aiSuggestion && (
                 <Btn variant="ghost" size="sm" onClick={handleGetAI} disabled={loadingAI}>
                   {loadingAI ? '分析中…' : '获取建议'}
@@ -338,61 +337,127 @@ function TicketDetailCard({ ticket, flowTemplates, onStatusChange }) {
               )}
             </div>
             {aiSuggestion && (
-              <div style={{ background: '#f0f7ff', borderRadius: '10px', padding: '12px 14px', fontSize: '13px', color: '#303133', lineHeight: 1.7 }}>
+              <div style={{ background:'#f0f7ff', borderRadius:'10px', padding:'12px 14px', fontSize:'13px', color:'#303133', lineHeight:1.7 }}>
                 {aiSuggestion}
               </div>
             )}
           </div>
 
-          {/* 留言记录 */}
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ fontWeight: '600', fontSize: '14px', color: '#1a2a3a', marginBottom: '10px' }}>
-              💬 沟通记录（{msgs.length}）
-            </div>
-            <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {msgs.length === 0 ? (
-                <div style={{ color: '#c0c4cc', fontSize: '13px', textAlign: 'center', padding: '12px' }}>暂无沟通记录</div>
-              ) : (
-                msgs.map(m => (
-                  <div key={m.id} style={{
-                    display: 'flex', flexDirection: m.sender_role === 'dispatcher' ? 'row-reverse' : 'row',
-                    alignItems: 'flex-end', gap: '8px',
-                  }}>
-                    <div style={{
-                      maxWidth: '70%',
-                      background: m.sender_role === 'dispatcher' ? '#0A2B4E' : '#f0f4ff',
-                      color: m.sender_role === 'dispatcher' ? '#fff' : '#303133',
-                      borderRadius: m.sender_role === 'dispatcher' ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
-                      padding: '8px 12px', fontSize: '13px', lineHeight: 1.5,
-                    }}>
-                      <div style={{ fontSize: '11px', opacity: 0.7, marginBottom: '3px' }}>
-                        {m.sender_name} · {fmtTime(m.created_at)}
-                      </div>
-                      {m.content}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+          {/* Tab 切换：公开留言 / 内部协作 */}
+          <div style={{ display:'flex', gap:'0', marginBottom:'12px', borderRadius:'8px', overflow:'hidden', border:'1.5px solid #e4e7ed', width:'fit-content' }}>
+            <button
+              onClick={() => setShowInternal(false)}
+              style={{
+                padding:'7px 16px', border:'none', cursor:'pointer', fontSize:'13px', fontWeight:'600',
+                background: !showInternal ? '#0A2B4E' : '#fff',
+                color: !showInternal ? '#fff' : '#606266',
+                display:'flex', alignItems:'center', gap:'5px',
+              }}
+            >
+              <FaComments size={12} />公开留言 ({msgs.filter(m => m.sender_role !== 'citizen').length})
+            </button>
+            <button
+              onClick={() => setShowInternal(true)}
+              style={{
+                padding:'7px 16px', border:'none', borderLeft:'1.5px solid #e4e7ed', cursor:'pointer', fontSize:'13px', fontWeight:'600',
+                background: showInternal ? '#1658AF' : '#fff',
+                color: showInternal ? '#fff' : '#606266',
+                display:'flex', alignItems:'center', gap:'5px',
+              }}
+            >
+              <FaLock size={11} />内部协作 ({internalMsgs.length})
+            </button>
           </div>
 
-          {/* 回复输入 */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-              value={msgDraft}
-              onChange={e => setMsgDraft(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleSendMsg(); }}
-              placeholder="回复市民…"
-              style={{
-                flex: 1, padding: '8px 12px', borderRadius: '8px',
-                border: '1.5px solid #e4e7ed', fontSize: '13px', outline: 'none',
-                fontFamily: 'inherit',
-              }}
-            />
-            <Btn variant="primary" size="sm" onClick={handleSendMsg} disabled={!msgDraft.trim()}>
-              发送
-            </Btn>
-          </div>
+          {/* 公开留言 */}
+          {!showInternal && (
+            <>
+              <div style={{ marginBottom:'12px' }}>
+                <div style={{ maxHeight:'200px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'8px' }}>
+                  {msgs.length === 0 ? (
+                    <div style={{ color:'#c0c4cc', fontSize:'13px', textAlign:'center', padding:'12px' }}>暂无留言</div>
+                  ) : (
+                    msgs.map(m => (
+                      <div key={m.id} style={{
+                        display:'flex', flexDirection: m.sender_role === 'dispatcher' ? 'row-reverse' : 'row',
+                        alignItems:'flex-end', gap:'8px',
+                      }}>
+                        <div style={{
+                          maxWidth:'70%',
+                          background: m.sender_role === 'dispatcher' ? '#0A2B4E' : '#f0f4ff',
+                          color: m.sender_role === 'dispatcher' ? '#fff' : '#303133',
+                          borderRadius: m.sender_role === 'dispatcher' ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
+                          padding:'8px 12px', fontSize:'13px', lineHeight:1.5,
+                        }}>
+                          <div style={{ fontSize:'11px', opacity:0.7, marginBottom:'3px' }}>{m.sender_name} · {fmtTime(m.created_at)}</div>
+                          {m.content}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:'8px' }}>
+                <input
+                  value={msgDraft} onChange={e => setMsgDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSendMsg(); }}
+                  placeholder="回复市民（市民可见）…"
+                  style={{ flex:1, padding:'8px 12px', borderRadius:'8px', border:'1.5px solid #e4e7ed', fontSize:'13px', outline:'none', fontFamily:'inherit' }}
+                />
+                <Btn variant="primary" size="sm" onClick={handleSendMsg} disabled={!msgDraft.trim()}>发送</Btn>
+              </div>
+            </>
+          )}
+
+          {/* 内部协作消息 */}
+          {showInternal && (
+            <>
+              <div style={{ marginBottom:'8px' }}>
+                <div style={{
+                  display:'flex', alignItems:'center', gap:'6px', padding:'8px 12px',
+                  background:'#fff8e1', border:'1px solid #ffd54f', borderRadius:'8px',
+                  fontSize:'12px', color:'#f57c00', marginBottom:'10px',
+                }}>
+                  <FaLock size={11} />此处消息仅管理员与处置员内部可见，市民不会看到
+                </div>
+                <div style={{ maxHeight:'200px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'8px' }}>
+                  {internalMsgs.length === 0 ? (
+                    <div style={{ color:'#c0c4cc', fontSize:'13px', textAlign:'center', padding:'12px' }}>暂无内部消息</div>
+                  ) : (
+                    internalMsgs.map(m => (
+                      <div key={m.id} style={{
+                        display:'flex', flexDirection: m.sender_role === 'dispatcher' ? 'row-reverse' : 'row',
+                        alignItems:'flex-end', gap:'8px',
+                      }}>
+                        <div style={{
+                          maxWidth:'70%',
+                          background: m.sender_role === 'dispatcher' ? '#1658AF' : '#fff3e0',
+                          color: m.sender_role === 'dispatcher' ? '#fff' : '#e65100',
+                          borderRadius: m.sender_role === 'dispatcher' ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
+                          padding:'8px 12px', fontSize:'13px', lineHeight:1.5,
+                          border: m.sender_role !== 'dispatcher' ? '1px solid #ffcc80' : 'none',
+                        }}>
+                          <div style={{ fontSize:'11px', opacity:0.75, marginBottom:'3px' }}>
+                            🔒 {m.sender_name} · {fmtTime(m.created_at)}
+                          </div>
+                          {m.content}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:'8px' }}>
+                <input
+                  value={internalDraft} onChange={e => setInternalDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSendInternal(); }}
+                  placeholder="发消息给管理员（内部可见）…"
+                  style={{ flex:1, padding:'8px 12px', borderRadius:'8px', border:'1.5px solid #ffcc80', fontSize:'13px', outline:'none', fontFamily:'inherit', background:'#fffde7' }}
+                />
+                <Btn size="sm" style={{ background:'#1658AF', color:'#fff', border:'none' }} onClick={handleSendInternal} disabled={!internalDraft.trim()}>发送</Btn>
+              </div>
+            </>
+          )}
         </div>
       )}
     </Card>

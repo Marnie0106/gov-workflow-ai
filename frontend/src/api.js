@@ -34,6 +34,19 @@ export const getMe = () =>
 export const getDispatchers = () =>
   api.get('/dispatchers').then(r => r.data);
 
+// ─── 短信验证码 ───
+export const sendSmsCode = (phone) =>
+  api.post('/sms/send', { phone }).then(r => r.data);
+
+export const verifySmsCode = (phone, code) =>
+  api.post('/sms/verify', { phone, code }).then(r => r.data);
+
+// ─── 图片上传 ───
+export const uploadPhotos = (formData) =>
+  api.post('/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data);
+
 // ─── 工单 ───
 export const getTickets = (params = {}) =>
   api.get('/tickets', { params }).then(r => r.data);
@@ -64,6 +77,10 @@ export const updateProgress = (id, stepIndex, completed) =>
 
 export const checkDuplicate = (data) =>
   api.post('/tickets/check-duplicate', data).then(r => r.data);
+
+// ─── 全局搜索（Banner用） ───
+export const searchTickets = (params = {}) =>
+  api.get('/tickets', { params }).then(r => r.data);
 
 // ─── 留言 ───
 export const getMessages = (params = {}) =>
@@ -119,3 +136,4 @@ export const generateFlow = (description) =>
   api.post('/ai/generateFlow', { description }).then(r => r.data);
 
 export default api;
+

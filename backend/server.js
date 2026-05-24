@@ -7,10 +7,36 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
+const multer = require('multer');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const PORT = 3001;
+
+// ==================== 文件上传配置 ====================
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `img_${Date.now()}_${Math.random().toString(36).slice(2,8)}${ext}`);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (/^image\//.test(file.mimetype)) cb(null, true);
+    else cb(new Error('只允许上传图片'));
+  },
+});
+
+// ==================== 短信验证码缓存（内存） ====================
+// key: phone, value: { code, expireAt }
+const smsCache = new Map();
 
 // 初始化数据库
 const db = require('./db');
@@ -51,26 +77,39 @@ app.post('/api/citizen/login', (req, res) => {
   });
 });
 
-// 系统用户登录（用户名）
+// 系统用户登录（工号 或 用户名）
 app.post('/api/login', (req, res) => {
-  const { username } = req.body;
-  if (!username) return res.status(400).json({ error: '用户名不能为空' });
+  const { username, employee_id } = req.body;
+  const identifier = (employee_id || username || '').trim();
+  if (!identifier) return res.status(400).json({ error: '请输入工号' });
   const d = db.getDb();
-  d.get(`SELECT u.*, r.role_name FROM users u JOIN roles r ON u.role_key = r.role_key WHERE u.username = ?`,
-    [username], async (err, user) => {
+  // 工号优先，同时也支持 username 匹配（兼容旧版）
+  d.get(
+    `SELECT u.*, r.role_name FROM users u JOIN roles r ON u.role_key = r.role_key
+     WHERE u.employee_id = ? OR u.username = ?`,
+    [identifier, identifier],
+    async (err, user) => {
       if (err) return res.status(500).json({ error: err.message });
-      if (!user) return res.status(404).json({ error: '用户不存在' });
+      if (!user) return res.status(404).json({ error: '工号不存在，请确认后重试' });
       try {
         const session = await db.createSession('user', user.id, user.role_key, user.display_name);
         res.json({
           success: true,
-          user: { id: user.id, username: user.username, role: user.role_key, displayName: user.display_name },
+          user: {
+            id: user.id,
+            username: user.username,
+            employeeId: user.employee_id,
+            role: user.role_key,
+            displayName: user.display_name,
+            department: user.department,
+          },
           session
         });
       } catch (e) {
         res.status(500).json({ error: '登录失败' });
       }
-    });
+    }
+  );
 });
 
 // 登出
@@ -99,6 +138,49 @@ app.get('/api/dispatchers', (req, res) => {
   });
 });
 
+// ==================== 短信验证码 API ====================
+
+// 发送验证码（演示：固定返回123456，真实环境接短信平台）
+app.post('/api/sms/send', (req, res) => {
+  const { phone } = req.body;
+  if (!phone || !/^\d{11}$/.test(phone)) {
+    return res.status(400).json({ error: '请输入有效的11位手机号' });
+  }
+  const code = '123456'; // 演示固定验证码
+  smsCache.set(phone, { code, expireAt: Date.now() + 5 * 60 * 1000 });
+  // 实际生产应调用短信平台API
+  console.log(`[SMS] 向 ${phone} 发送验证码: ${code}`);
+  res.json({ success: true, message: '验证码已发送（演示系统：固定为123456）' });
+});
+
+// 验证验证码
+app.post('/api/sms/verify', (req, res) => {
+  const { phone, code } = req.body;
+  if (!phone || !code) return res.status(400).json({ error: '手机号和验证码不能为空' });
+  const cached = smsCache.get(phone);
+  if (!cached) return res.status(400).json({ error: '验证码不存在或已过期，请重新获取' });
+  if (Date.now() > cached.expireAt) {
+    smsCache.delete(phone);
+    return res.status(400).json({ error: '验证码已过期，请重新获取' });
+  }
+  if (cached.code !== String(code)) return res.status(400).json({ error: '验证码错误' });
+  smsCache.delete(phone);
+  res.json({ success: true, verified: true });
+});
+
+// ==================== 图片上传 API ====================
+
+app.post('/api/upload', upload.array('photos', 3), (req, res) => {
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ error: '未收到图片' });
+  }
+  const urls = req.files.map(f => `/uploads/${f.filename}`);
+  res.json({ success: true, urls });
+});
+
+// 静态服务 uploads 目录
+app.use('/uploads', express.static(uploadDir));
+
 // ==================== 工单 API ====================
 
 app.get('/api/tickets', (req, res) => {
@@ -118,11 +200,11 @@ app.get('/api/tickets/:id', (req, res) => {
 });
 
 app.post('/api/tickets', async (req, res) => {
-  const { title, content, location, reporter, citizen_id, source, occurred_at } = req.body;
+  const { title, content, location, reporter, citizen_id, source, occurred_at, photo_urls } = req.body;
   if (!title || !content || !location) {
     return res.status(400).json({ error: '标题、内容、地点不能为空' });
   }
-  db.createTicket({ title, content, location, reporter, citizen_id, source, occurred_at }, async (err, ticketId) => {
+  db.createTicket({ title, content, location, reporter, citizen_id, source, occurred_at, photo_urls }, async (err, ticketId) => {
     if (err) return res.status(500).json({ error: err.message });
     const { analyzeTicket, recommendDepartment } = require('./agents');
     const ticketObj = { id: ticketId, title, content, location, reporter };
@@ -236,24 +318,32 @@ app.post('/api/tickets/check-duplicate', (req, res) => {
 // ==================== 留言 API ====================
 
 app.get('/api/messages', (req, res) => {
-  const { ticketId, senderRole, isRead } = req.query;
-  db.queryMessages({ ticketId, senderRole, isRead: isRead !== undefined ? parseInt(isRead) : undefined }, (err, rows) => {
+  const { ticketId, senderRole, isRead, is_internal } = req.query;
+  const filters = {
+    ticketId,
+    senderRole,
+    isRead: isRead !== undefined ? parseInt(isRead) : undefined,
+    is_internal: is_internal !== undefined ? parseInt(is_internal) : undefined,
+  };
+  db.queryMessages(filters, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
 app.post('/api/messages', (req, res) => {
-  const { ticket_id, sender_role, sender_name, content } = req.body;
+  const { ticket_id, sender_role, sender_name, content, is_internal } = req.body;
   if (!ticket_id || !sender_role || !sender_name || !content) return res.status(400).json({ error: '参数不完整' });
-  db.addMessage({ ticket_id, sender_role, sender_name, content }, (err, id) => {
+  db.addMessage({ ticket_id, sender_role, sender_name, content, is_internal: is_internal ? 1 : 0 }, (err, id) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, id });
   });
 });
 
 app.get('/api/messages/unread-count', (req, res) => {
-  db.countUnreadMessages(req.query.role || 'citizen', (err, count) => {
+  const role = req.query.role || 'citizen';
+  const userId = req.sessionData ? req.sessionData.user_id : null;
+  db.countUnreadMessages(role, userId, (err, count) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ count });
   });
