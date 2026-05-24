@@ -1,10 +1,10 @@
-// test-api.js
+// test-api.js — AI 服务连通性测试脚本
 const axios = require('axios');
 require('dotenv').config();
 
-const API_KEY = process.env.DEEPSEEK_API_KEY;
-const MODEL = 'deepseek-ai/DeepSeek-V3';  // 确认您使用的模型名
-const URL = 'https://api.siliconflow.cn/v1/chat/completions';
+const API_KEY = process.env.AI_API_KEY;
+const MODEL = process.env.AI_MODEL;
+const URL = process.env.AI_API_URL;
 
 async function test() {
   try {
@@ -22,9 +22,9 @@ async function test() {
         'Content-Type': 'application/json'
       }
     });
-    console.log('API 调用成功：', response.data.choices[0].message.content);
+    console.log('AI 服务连通性测试成功：', response.data.choices[0].message.content);
   } catch (error) {
-    console.error('API 调用失败：');
+    console.error('AI 服务测试失败：');
     if (error.response) {
       console.error('状态码:', error.response.status);
       console.error('返回数据:', error.response.data);

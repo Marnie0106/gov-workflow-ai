@@ -452,9 +452,9 @@ app.post('/api/ai/suggest', async (req, res) => {
   const userPrompt = `工单标题：${ticket.title}，内容：${ticket.content}，位置：${ticket.location}。
 异常类型：超时=${ticket.isTimeout ? '是' : '否'}，重复=${ticket.isDuplicate ? '是' : '否'}，模糊=${ticket.isVague ? '是' : '否'}。请给出建议。`;
   try {
-    const API_KEY = process.env.DEEPSEEK_API_KEY;
-    const response = await axios.post('https://api.siliconflow.cn/v1/chat/completions', {
-      model: 'deepseek-ai/DeepSeek-V3',
+    const API_KEY = process.env.AI_API_KEY;
+    const response = await axios.post(process.env.AI_API_URL, {
+      model: process.env.AI_MODEL,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
       temperature: 0.7
     }, { headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' } });
@@ -471,9 +471,9 @@ app.post('/api/ai/generateFlow', async (req, res) => {
   const systemPrompt = `你是政务流程设计专家。根据描述生成节点数组和边数组。输出严格JSON。
 {"nodes":[{"id":"1","label":"工单创建"}],"edges":[{"source":"1","target":"2"}]}`;
   try {
-    const API_KEY = process.env.DEEPSEEK_API_KEY;
-    const response = await axios.post('https://api.siliconflow.cn/v1/chat/completions', {
-      model: 'deepseek-ai/DeepSeek-V3',
+    const API_KEY = process.env.AI_API_KEY;
+    const response = await axios.post(process.env.AI_API_URL, {
+      model: process.env.AI_MODEL,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: `流程：${description}` }],
       temperature: 0.3
     }, { headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' } });
