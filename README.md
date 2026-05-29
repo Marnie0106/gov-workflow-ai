@@ -4,7 +4,7 @@
 
 ## 功能特性
 
-- **市民端**：手机号登录、工单上报、照片上传、留言沟通、服务评价
+- **市民端**：手机号验证码登录、实名认证、工单上报、照片上传、留言沟通、服务评价
 - **处置员端**：工单接收/处理、状态流转、AI 处置建议、内部协作、留言互动
 - **管理员端**：工单全生命周期管理、流程模板 CRUD、AI 智能生成流程、内部协作
 - **领导看板**：核心指标统计、ECharts 图表可视化（工单趋势/分类/处理时长/满意度）
@@ -60,14 +60,6 @@ AI_API_URL=你的API服务地址
 AI_MODEL=你使用的模型名称
 ```
 
-> 推荐使用 [硅基流动](https://siliconflow.cn) 平台，注册即送免费额度，兼容 OpenAI 格式，配置示例：
->
-> ```
-> AI_API_KEY=sk-xxxxxxxx
-> AI_API_URL=https://api.siliconflow.cn/v1/chat/completions
-> AI_MODEL=deepseek-ai/DeepSeek-V3
-> ```
-
 > 不配置 AI 服务不影响系统其他功能，AI 相关功能会返回默认兜底结果。
 
 ### 启动
@@ -96,9 +88,9 @@ npm run dev
 
 | 账号 | 验证码 |
 |------|--------|
-| 任意 11 位手机号 | 123456 |
+| 任意 11 位手机号 | 页面显示随机验证码 |
 
-> 验证码固定为 `123456`（演示用）。
+> 演示模式下验证码为随机6位数字，会在页面上直接展示。
 
 ### 政务人员（工号登录）
 
@@ -146,8 +138,12 @@ gov-workflow-ai/
 后端运行在 `http://localhost:3001`，主要接口：
 
 - `POST /api/login` - 系统用户登录（支持工号）
+- `POST /api/citizen/login` - 市民验证码登录
+- `POST /api/citizen/register` - 市民实名注册
 - `POST /api/sms/send` - 发送短信验证码
 - `POST /api/sms/verify` - 验证短信验证码
+- `GET/POST/DELETE /api/users` - 政务人员管理
+- `POST /api/users/import` - 批量导入政务人员
 - `GET/POST /api/tickets` - 工单列表/创建
 - `POST /api/tickets/:id/dispatch` - 派单
 - `GET/POST /api/messages` - 留言（含内部协作）

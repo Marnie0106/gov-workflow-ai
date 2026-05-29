@@ -49,3 +49,6 @@ Desktop.ini
 
 # Vite temp
 *.local
+
+# 汇报资料（不上传）
+汇报资料/
