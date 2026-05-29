@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaBell, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import { getUnreadCount } from '../api';
@@ -11,12 +11,11 @@ const ROLE_MAP = {
   '/leader':        '领导',
 };
 
-/* 路由 → 消息角色映射（用于 unread-count 查询） */
 const ROUTE_TO_MSG_ROLE = {
   '/citizen':       'citizen',
   '/dispatcher':    'dispatcher',
   '/process-admin': 'admin',
-  '/leader':        null, // 领导不显示未读
+  '/leader':        null,
 };
 
 function getRoleName(pathname) {
@@ -43,9 +42,6 @@ export default function NavBar() {
   const department   = sessionStorage.getItem('department') || '';
   const msgRole      = getMsgRole(location.pathname);
 
-  // 右上角身份显示
-  // 市民：显示脱敏手机号（***0987）
-  // 政务：显示真实姓名（display_name），下方显示部门
   const rawDisplay   = sessionStorage.getItem('displayName') || roleName;
   const citizenPhone = sessionStorage.getItem('citizenPhone') || '';
   const isCitizen    = roleKey === 'citizen';
@@ -53,7 +49,6 @@ export default function NavBar() {
     ? (citizenPhone ? `***${citizenPhone.slice(-4)}` : rawDisplay)
     : rawDisplay;
 
-  // 获取当前工作台的未读消息数（精准隔离到当前页面角色）
   const fetchUnread = async () => {
     if (!msgRole) { setUnread(0); return; }
     try {
@@ -66,7 +61,6 @@ export default function NavBar() {
     fetchUnread();
     const timer = setInterval(fetchUnread, 30000);
     return () => clearInterval(timer);
-  // 路由变化时重新拉取（切换工作台时清零再更新）
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
@@ -77,10 +71,12 @@ export default function NavBar() {
 
   return (
     <nav style={{
-      position:'fixed', top:0, left:0, width:'100%', height:'64px',
-      backgroundColor:'#0A2B4E', zIndex:1000,
+      position:'fixed', top:0, left:0, width:'100%', height:'56px',
+      background:'linear-gradient(135deg, #0F2640 0%, #1B3A5C 100%)',
+      zIndex:1000,
       display:'flex', alignItems:'center', justifyContent:'center',
-      boxShadow:'0 2px 12px rgba(0,0,0,0.3)',
+      boxShadow:'0 1px 6px rgba(0,0,0,0.20)',
+      borderBottom:'2px solid #C5A55A',
     }}>
       <div style={{
         width:'100%', maxWidth:'1200px', padding:'0 24px',
@@ -90,36 +86,42 @@ export default function NavBar() {
         <div
           onClick={() => navigate('/login')}
           style={{
-            color:'#fff', fontSize:'19px', fontWeight:'700',
-            cursor:'pointer', letterSpacing:'1px', userSelect:'none',
+            color:'#fff', fontSize:'16px', fontWeight:'600',
+            cursor:'pointer', letterSpacing:'2px', userSelect:'none',
             display:'flex', alignItems:'center', gap:'10px',
           }}
         >
-          <span style={{ fontSize:'20px' }}>🏛️</span>
-          市容巡查一体化系统
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 8V10H22V8L12 2Z" fill="#C5A55A"/>
+            <rect x="4" y="11" width="3" height="8" fill="#fff" opacity="0.9"/>
+            <rect x="10.5" y="11" width="3" height="8" fill="#fff" opacity="0.9"/>
+            <rect x="17" y="11" width="3" height="8" fill="#fff" opacity="0.9"/>
+            <rect x="2" y="20" width="20" height="2" fill="#C5A55A"/>
+          </svg>
+          <span>市容巡查一体化系统</span>
         </div>
 
-        {/* 右侧：通知 + 当前角色 + 退出 */}
-        <div style={{ display:'flex', alignItems:'center', gap:'20px' }}>
-          {/* 通知图标 */}
+        {/* 右侧 */}
+        <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
+          {/* 通知 */}
           <button
             title={msgRole ? `${roleName}工作台未读消息` : '通知'}
             style={{
-              background:'none', border:'none', color:'rgba(255,255,255,0.75)',
+              background:'none', border:'none', color:'rgba(255,255,255,0.7)',
               cursor:'pointer', padding:'6px',
               display:'flex', alignItems:'center', position:'relative',
             }}
           >
-            <FaBell size={19} />
+            <FaBell size={16} />
             {unread > 0 && (
               <span style={{
-                position:'absolute', top:'2px', right:'2px',
-                background:'#F56C6C', color:'#fff',
-                borderRadius:'10px', padding:'0 5px',
+                position:'absolute', top:'2px', right:'0',
+                background:'#C0392B', color:'#fff',
+                borderRadius:'8px', padding:'0 4px',
                 fontSize:'10px', fontWeight:'700',
-                minWidth:'16px', height:'16px',
+                minWidth:'14px', height:'14px',
                 display:'flex', alignItems:'center', justifyContent:'center',
-                border:'1.5px solid #0A2B4E',
+                border:'1.5px solid #1B3A5C',
               }}>
                 {unread > 99 ? '99+' : unread}
               </span>
@@ -127,39 +129,39 @@ export default function NavBar() {
           </button>
 
           {/* 分隔线 */}
-          <div style={{ width:'1px', height:'20px', background:'rgba(255,255,255,0.2)' }} />
+          <div style={{ width:'1px', height:'20px', background:'rgba(255,255,255,0.15)' }} />
 
           {/* 角色名 */}
           <div style={{ display:'flex', alignItems:'center', gap:'8px', color:'#fff' }}>
-            <FaUserCircle size={22} style={{ color:'rgba(255,255,255,0.7)' }} />
-            <div style={{ display:'flex', flexDirection:'column', lineHeight:1.25 }}>
-              <span style={{ fontSize:'14px', fontWeight:'600' }}>
+            <FaUserCircle size={18} style={{ color:'rgba(255,255,255,0.6)' }} />
+            <div style={{ display:'flex', flexDirection:'column', lineHeight:1.2 }}>
+              <span style={{ fontSize:'13px', fontWeight:'500' }}>
                 {isCitizen ? `市民 ${displayName}` : displayName}
               </span>
               {!isCitizen && department && (
-                <span style={{ fontSize:'11px', color:'rgba(180,210,255,0.7)' }}>{department}</span>
+                <span style={{ fontSize:'11px', color:'rgba(197,165,90,0.8)' }}>{department}</span>
               )}
               {isCitizen && (
-                <span style={{ fontSize:'11px', color:'rgba(180,255,180,0.7)' }}>已实名认证</span>
+                <span style={{ fontSize:'11px', color:'rgba(197,165,90,0.8)' }}>已实名认证</span>
               )}
             </div>
           </div>
 
-          {/* 退出按钮 */}
+          {/* 退出 */}
           <button
             onClick={handleLogout}
             title="退出登录"
             style={{
-              background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.25)',
-              color:'rgba(255,255,255,0.85)', borderRadius:'20px', padding:'5px 14px',
-              fontSize:'13px', cursor:'pointer',
-              display:'flex', alignItems:'center', gap:'6px',
+              background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.2)',
+              color:'rgba(255,255,255,0.8)', borderRadius:'2px', padding:'4px 12px',
+              fontSize:'12px', cursor:'pointer',
+              display:'flex', alignItems:'center', gap:'5px',
               transition:'background 0.2s',
             }}
-            onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.2)'}
-            onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.1)'}
+            onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.15)'}
+            onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.08)'}
           >
-            <FaSignOutAlt size={12} />退出
+            <FaSignOutAlt size={11} />退出
           </button>
         </div>
       </div>

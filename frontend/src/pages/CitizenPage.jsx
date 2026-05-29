@@ -29,7 +29,6 @@ function getCitizenId() {
     const s = sessionStorage.getItem('session');
     if (s) {
       const parsed = JSON.parse(s);
-      // 从 /api/me 获取的 userId
       return sessionStorage.getItem('userId') || '1';
     }
   } catch {}
@@ -153,8 +152,8 @@ export default function CitizenPage() {
   // ── 加载中状态 ──
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '80px 0', color: '#909399' }}>
-        <div style={{ fontSize: '32px', marginBottom: '16px' }}>⏳</div>
+      <div style={{ textAlign: 'center', padding: '80px 0', color: '#8C9AAF' }}>
+        <div style={{ fontSize: '32px', marginBottom: '16px' }}>.</div>
         正在加载工作台数据…
       </div>
     );
@@ -195,13 +194,13 @@ export default function CitizenPage() {
       <div style={{ marginBottom: '20px' }}>
         <h2
           style={{
-            fontSize: '22px', fontWeight: '700',
-            color: '#1a2a3a', marginBottom: '4px',
+            fontSize: '18px', fontWeight: '700',
+            color: '#1A1A2E', marginBottom: '4px',
           }}
         >
-          👤 市民工作台
+          市民工作台
         </h2>
-        <p style={{ fontSize: '13px', color: '#909399' }}>
+        <p style={{ fontSize: '13px', color: '#8C9AAF' }}>
           {sessionStorage.getItem('displayName') || '市民'} · 共 {tickets.length} 条工单
         </p>
       </div>
@@ -228,23 +227,24 @@ export default function CitizenPage() {
             style={{
               marginTop: '20px',
               background: '#fff',
-              borderRadius: '14px',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+              borderRadius: '4px',
+              boxShadow: '0 1px 4px rgba(27,58,92,0.06)',
+              border: '1px solid #E8ECF0',
               padding: '18px 24px',
             }}
           >
             <h4
               style={{
                 fontSize: '14px', fontWeight: '700',
-                color: '#1a2a3a', marginBottom: '14px',
+                color: '#1A1A2E', marginBottom: '14px',
                 display: 'flex', alignItems: 'center', gap: '6px',
               }}
             >
-              📋 我的工单历史
+              我的工单历史
               <span
                 style={{
-                  background: '#e8f0fe', color: '#1658AF',
-                  borderRadius: '10px', padding: '1px 8px',
+                  background: '#EDF2F7', color: '#1B3A5C',
+                  borderRadius: '2px', padding: '1px 8px',
                   fontSize: '12px', fontWeight: '600',
                 }}
               >
@@ -253,7 +253,7 @@ export default function CitizenPage() {
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {tickets.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#c0c4cc', fontSize: '13px', padding: '20px 0' }}>
+                <div style={{ textAlign: 'center', color: '#8C9AAF', fontSize: '13px', padding: '20px 0' }}>
                   暂无工单，请提交第一个工单
                 </div>
               ) : (
@@ -262,7 +262,7 @@ export default function CitizenPage() {
                 ))
               )}
               {tickets.length > 5 && (
-                <div style={{ textAlign: 'center', fontSize: '13px', color: '#909399', padding: '8px 0' }}>
+                <div style={{ textAlign: 'center', fontSize: '13px', color: '#8C9AAF', padding: '8px 0' }}>
                   … 共 {tickets.length} 条，更多内容开发中
                 </div>
               )}
@@ -310,21 +310,21 @@ function TicketRow({ ticket }) {
   const statusText = ticket.dispatch_status || STATUS_LABEL[ticket.status] || ticket.status;
 
   const STATUS_COLOR = {
-    '待派单': { dot: '#E67E22', bg: '#FFF3E0' },
-    '派单中': { dot: '#8E44AD', bg: '#F3E8FF' },
-    '已接受': { dot: '#1658AF', bg: '#E8F0FE' },
-    '处理中': { dot: '#27AE60', bg: '#E8F5E9' },
-    '已完结': { dot: '#1658AF', bg: '#E8F0FE' },
+    '待派单': { dot: '#D4880F', bg: '#FFF8E6' },
+    '派单中': { dot: '#1B3A5C', bg: '#EDF2F7' },
+    '已接受': { dot: '#1B3A5C', bg: '#EDF2F7' },
+    '处理中': { dot: '#1E8449', bg: '#E8F5E9' },
+    '已完结': { dot: '#1B3A5C', bg: '#EDF2F7' },
   };
-  const sc = STATUS_COLOR[statusText] || { dot: '#909399', bg: '#f5f7fa' };
+  const sc = STATUS_COLOR[statusText] || { dot: '#8C9AAF', bg: '#F0F2F5' };
 
   return (
     <div
       style={{
         display: 'flex', alignItems: 'center', gap: '10px',
         padding: '10px 12px',
-        background: '#fafafa', borderRadius: '8px',
-        border: '1px solid #f0f0f0',
+        background: '#F0F2F5', borderRadius: '4px',
+        border: '1px solid #E8ECF0',
         fontSize: '13px',
       }}
     >
@@ -334,19 +334,19 @@ function TicketRow({ ticket }) {
           background: sc.dot, borderRadius: '50%', flexShrink: 0,
         }}
       />
-      <span style={{ flex: 1, color: '#303133', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span style={{ flex: 1, color: '#1A1A2E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         #{ticket.id} {ticket.title}
       </span>
-      <span style={{ color: '#909399', flexShrink: 0 }}>
+      <span style={{ color: '#8C9AAF', flexShrink: 0 }}>
         {(ticket.location || '').length > 8 ? ticket.location.slice(0, 8) + '…' : ticket.location}
       </span>
       {ticket.isTimeout === 1 && (
-        <span style={{ color: '#E74C3C', fontSize: '11px', fontWeight: '600', flexShrink: 0 }}>超时</span>
+        <span style={{ color: '#C0392B', fontSize: '11px', fontWeight: '600', flexShrink: 0 }}>超时</span>
       )}
       <span
         style={{
           background: sc.bg, color: sc.dot,
-          padding: '2px 8px', borderRadius: '10px',
+          padding: '2px 8px', borderRadius: '2px',
           fontSize: '11px', fontWeight: '600', flexShrink: 0,
         }}
       >
@@ -366,36 +366,37 @@ function StatsCard({ tickets, evaluatedIds, statusLabel }) {
   const evalDone = [...evaluatedIds].length;
 
   const items = [
-    { label: '总工单',  value: total,   color: '#1658AF' },
-    { label: '已完成',  value: done,    color: '#27AE60' },
-    { label: '处置中',  value: pending, color: '#E67E22' },
-    { label: '已评价',  value: evalDone,color: '#F5A623' },
+    { label: '总工单',  value: total,   color: '#1B3A5C' },
+    { label: '已完成',  value: done,    color: '#1E8449' },
+    { label: '处置中',  value: pending, color: '#D4880F' },
+    { label: '已评价',  value: evalDone,color: '#C5A55A' },
   ];
 
   return (
     <div
       style={{
-        background: '#fff', borderRadius: '14px',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+        background: '#fff', borderRadius: '4px',
+        boxShadow: '0 1px 4px rgba(27,58,92,0.06)',
+        border: '1px solid #E8ECF0',
         padding: '16px 20px',
       }}
     >
-      <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#1a2a3a', marginBottom: '12px' }}>
-        📊 数据概览
+      <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#1A1A2E', marginBottom: '12px' }}>
+        数据概览
       </h4>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
         {items.map((item) => (
           <div
             key={item.label}
             style={{
-              background: '#f9fbff', borderRadius: '8px',
+              background: '#F0F2F5', borderRadius: '4px',
               padding: '10px 12px', textAlign: 'center',
             }}
           >
             <div style={{ fontSize: '22px', fontWeight: '700', color: item.color }}>
               {item.value}
             </div>
-            <div style={{ fontSize: '11px', color: '#909399', marginTop: '2px' }}>
+            <div style={{ fontSize: '11px', color: '#8C9AAF', marginTop: '2px' }}>
               {item.label}
             </div>
           </div>

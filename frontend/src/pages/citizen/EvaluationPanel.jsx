@@ -13,19 +13,19 @@ const STATUS_TEXT = {
 
 function StatusBadge({ status }) {
   const map = {
-    '待派单':  { bg: '#FFF3E0', color: '#E67E22' },
-    '派单中':  { bg: '#F3E8FF', color: '#8E44AD' },
-    '已接受':  { bg: '#E8F0FE', color: '#1658AF' },
-    '处理中':  { bg: '#E8F5E9', color: '#27AE60' },
-    '已完结':  { bg: '#E8F0FE', color: '#1658AF' },
-    '已完成':  { bg: '#E8F0FE', color: '#1658AF' },
+    '待派单':  { bg: '#FFF8E6', color: '#D4880F' },
+    '派单中':  { bg: '#EDF2F7', color: '#1B3A5C' },
+    '已接受':  { bg: '#EDF2F7', color: '#1B3A5C' },
+    '处理中':  { bg: '#E8F5E9', color: '#1E8449' },
+    '已完结':  { bg: '#EDF2F7', color: '#1B3A5C' },
+    '已完成':  { bg: '#EDF2F7', color: '#1B3A5C' },
   };
-  const { bg = '#f5f7fa', color = '#909399' } = map[status] || {};
+  const { bg = '#F0F2F5', color = '#8C9AAF' } = map[status] || {};
   return (
     <span
       style={{
         background: bg, color,
-        padding: '3px 10px', borderRadius: '12px',
+        padding: '3px 10px', borderRadius: '2px',
         fontSize: '12px', fontWeight: '600',
       }}
     >
@@ -45,13 +45,12 @@ export function EvaluationCard({ pendingTickets, onOpen }) {
     <Card>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '17px' }}>⭐</span>
-          <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#1a2a3a' }}>待评价</h4>
+          <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#1A1A2E' }}>待评价</h4>
           {count > 0 && (
             <span
               style={{
-                background: '#F5A623', color: '#fff',
-                borderRadius: '10px', padding: '1px 7px',
+                background: '#C5A55A', color: '#fff',
+                borderRadius: '2px', padding: '1px 7px',
                 fontSize: '11px', fontWeight: '700',
               }}
             >
@@ -68,32 +67,32 @@ export function EvaluationCard({ pendingTickets, onOpen }) {
         <div
           onClick={onOpen}
           style={{
-            background: '#fffbf0',
-            borderRadius: '10px',
+            background: '#FFF8E6',
+            borderRadius: '4px',
             padding: '12px 14px',
             cursor: 'pointer',
-            border: '1px solid #ffe4a0',
+            border: '1px solid #E8D5A0',
             transition: 'background 0.15s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#fff3d0')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#fffbf0')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#FFF3D0')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = '#FFF8E6')}
         >
-          <div style={{ fontWeight: '600', fontSize: '13px', color: '#1a2a3a', marginBottom: '5px' }}>
+          <div style={{ fontWeight: '600', fontSize: '13px', color: '#1A1A2E', marginBottom: '5px' }}>
             #{latest.id} {latest.title}
           </div>
-          <div style={{ fontSize: '12px', color: '#909399', marginBottom: '6px' }}>
-            📍 {latest.location}
+          <div style={{ fontSize: '12px', color: '#8C9AAF', marginBottom: '6px' }}>
+            {latest.location}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <StatusBadge status={STATUS_TEXT[latest.status] || latest.status} />
-            <span style={{ fontSize: '12px', color: '#E67E22', fontWeight: '600' }}>
+            <span style={{ fontSize: '12px', color: '#C5A55A', fontWeight: '600' }}>
               · 等待您的评价
             </span>
           </div>
         </div>
       ) : (
-        <div style={{ textAlign: 'center', color: '#c0c4cc', fontSize: '13px', padding: '20px 0' }}>
-          暂无待评价工单 ✅
+        <div style={{ textAlign: 'center', color: '#8C9AAF', fontSize: '13px', padding: '20px 0' }}>
+          暂无待评价工单
         </div>
       )}
     </Card>
@@ -143,8 +142,8 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
         <Btn size="sm" variant="ghost" onClick={onBack}>
           <FaArrowLeft size={11} /> 返回工作台
         </Btn>
-        <h3 style={{ fontSize: '17px', fontWeight: '700', color: '#1a2a3a' }}>待评价工单</h3>
-        <span style={{ marginLeft: '4px', fontSize: '13px', color: '#909399' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A2E' }}>待评价工单</h3>
+        <span style={{ marginLeft: '4px', fontSize: '13px', color: '#8C9AAF' }}>
           共 {(pendingTickets || []).length} 条
         </span>
       </div>
@@ -153,14 +152,16 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
         <div
           style={{
             textAlign: 'center', padding: '60px 24px',
-            background: '#fff', borderRadius: '14px',
+            background: '#fff', borderRadius: '4px',
+            boxShadow: '0 1px 4px rgba(27,58,92,0.06)',
+            border: '1px solid #E8ECF0',
           }}
         >
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
-          <div style={{ fontWeight: '700', fontSize: '16px', color: '#27AE60', marginBottom: '8px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px', color: '#1E8449' }}>&#10003;</div>
+          <div style={{ fontWeight: '700', fontSize: '16px', color: '#1E8449', marginBottom: '8px' }}>
             全部已评价
           </div>
-          <div style={{ fontSize: '13px', color: '#909399' }}>感谢您的反馈！</div>
+          <div style={{ fontSize: '13px', color: '#8C9AAF' }}>感谢您的反馈！</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -169,21 +170,21 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
               key={t.id}
               style={{
                 background: '#fff',
-                borderRadius: '12px',
+                borderRadius: '4px',
                 padding: '16px 20px',
-                border: '1px solid #e4e7ed',
-                boxShadow: '0 1px 6px rgba(0,0,0,0.04)',
+                border: '1px solid #E8ECF0',
+                boxShadow: '0 1px 4px rgba(27,58,92,0.06)',
                 display: 'flex', alignItems: 'center', gap: '14px',
               }}
             >
               {/* 工单信息 */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: '600', fontSize: '15px', color: '#1a2a3a', marginBottom: '5px' }}>
+                <div style={{ fontWeight: '600', fontSize: '13px', color: '#1A1A2E', marginBottom: '5px' }}>
                   #{t.id} {t.title}
                 </div>
-                <div style={{ fontSize: '12px', color: '#909399', display: 'flex', gap: '12px' }}>
-                  <span>📍 {t.location}</span>
-                  <span>🕐 {fmtTime(t.completed_at || t.createdAt)}</span>
+                <div style={{ fontSize: '12px', color: '#8C9AAF', display: 'flex', gap: '12px' }}>
+                  <span>{t.location}</span>
+                  <span>{fmtTime(t.completed_at || t.createdAt)}</span>
                 </div>
               </div>
 
@@ -194,7 +195,7 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
                   <span
                     style={{
                       display: 'flex', alignItems: 'center', gap: '4px',
-                      color: '#27AE60', fontSize: '13px', fontWeight: '600',
+                      color: '#1E8449', fontSize: '13px', fontWeight: '600',
                     }}
                   >
                     <FaCheckCircle size={14} /> 已评价
@@ -230,7 +231,7 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
             {/* 工单摘要 */}
             <div
               style={{
-                background: '#f9f9f9', borderRadius: '10px',
+                background: '#F0F2F5', borderRadius: '4px',
                 padding: '12px 16px', fontSize: '13px', lineHeight: 1.8,
               }}
             >
@@ -241,12 +242,12 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
 
             {/* 星级 */}
             <div>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: '#606266', marginBottom: '10px' }}>
-                处置满意度 <span style={{ color: '#E74C3C' }}>*</span>
+              <div style={{ fontSize: '13px', fontWeight: '600', color: '#5A6A7A', marginBottom: '10px' }}>
+                处置满意度 <span style={{ color: '#C0392B' }}>*</span>
               </div>
               <StarRating value={starValue} onChange={setStarValue} />
               {starValue === 0 && (
-                <div style={{ fontSize: '12px', color: '#c0c4cc', marginTop: '6px' }}>
+                <div style={{ fontSize: '12px', color: '#8C9AAF', marginTop: '6px' }}>
                   请点击星星进行评分
                 </div>
               )}
@@ -254,7 +255,7 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
 
             {/* 文字评语 */}
             <div>
-              <div style={{ fontSize: '13px', fontWeight: '600', color: '#606266', marginBottom: '8px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '600', color: '#5A6A7A', marginBottom: '8px' }}>
                 文字评语（可选）
               </div>
               <textarea
@@ -264,19 +265,19 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
                 rows={3}
                 style={{
                   width: '100%', boxSizing: 'border-box',
-                  border: '1.5px solid #e4e7ed', borderRadius: '8px',
-                  padding: '10px 12px', fontSize: '14px', color: '#303133',
+                  border: '1px solid #D9DEE6', borderRadius: '2px',
+                  padding: '10px 12px', fontSize: '13px', color: '#1A1A2E',
                   outline: 'none', resize: 'vertical', fontFamily: 'inherit',
                   lineHeight: 1.6,
                 }}
-                onFocus={(e) => (e.target.style.borderColor = '#0A2B4E')}
-                onBlur={(e)  => (e.target.style.borderColor = '#e4e7ed')}
+                onFocus={(e) => (e.target.style.borderColor = '#1B3A5C')}
+                onBlur={(e)  => (e.target.style.borderColor = '#D9DEE6')}
               />
             </div>
 
             {/* 错误提示 */}
             {error && (
-              <div style={{ color: '#E74C3C', fontSize: '13px' }}>{error}</div>
+              <div style={{ color: '#C0392B', fontSize: '13px' }}>{error}</div>
             )}
           </div>
         )}

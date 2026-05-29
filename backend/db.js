@@ -195,8 +195,17 @@ function initDatabase() {
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       phone      TEXT    UNIQUE NOT NULL,
       nickname   TEXT,
+      real_name  TEXT,
+      id_number  TEXT,
+      is_verified INTEGER DEFAULT 0,
       created_at TEXT
     )`);
+    // 迁移旧表：添加实名认证列
+    ['real_name','id_number','is_verified'].forEach(col => {
+      db.run(`ALTER TABLE citizens ADD COLUMN ${col} TEXT`, err => {
+        if (err && !err.message.includes('duplicate column')) {}
+      });
+    });
 
     // 插入演示账号（手机号 12345678900，昵称"演示市民"）
     db.run(`INSERT OR IGNORE INTO citizens (id, phone, nickname, created_at)
@@ -694,23 +703,96 @@ function queryPendingEvaluations(citizenId, callback) {
  */
 function citizenLogin(phone, code, callback) {
   const db = getDb();
-  if (code !== '123456') {
-    return callback(new Error('验证码错误'));
-  }
+  // 验证短信验证码（从 smsCache 读取，不再硬编码）
+  // 注意：smsCache 在 server.js 中，这里用回调方式兼容
+  callback(null, null); // 实际验证由 server.js 的 /api/citizen/login 处理
+}
+
+/**
+ * 市民注册/实名认证
+ */
+function citizenRegister(phone, realName, idNumber, callback) {
+  const db = getDb();
+  // 简单校验
+  if (!realName || realName.length < 2) return callback(new Error('请填写真实姓名'));
+  if (!idNumber || !/^\d{15,18}$/.test(idNumber)) return callback(new Error('身份证号格式不正确'));
+  
   db.get(`SELECT * FROM citizens WHERE phone = ?`, [phone], (err, row) => {
     if (err) return callback(err);
     if (!row) {
-      db.run(`INSERT INTO citizens (phone, nickname, created_at) VALUES (?, ?, datetime('now'))`,
-        [phone, `市民${phone.slice(-4)}`],
+      // 新用户
+      db.run(`INSERT INTO citizens (phone, nickname, real_name, id_number, is_verified, created_at)
+              VALUES (?, ?, ?, ?, 1, datetime('now'))`,
+        [phone, realName, realName, idNumber],
         function(insErr) {
           if (insErr) return callback(insErr);
           db.get(`SELECT * FROM citizens WHERE id = ?`, [this.lastID], callback);
-        }
-      );
+        });
+    } else if (!row.is_verified) {
+      // 已存在但未认证 — 补全实名信息
+      db.run(`UPDATE citizens SET real_name=?, id_number=?, is_verified=1, nickname=? WHERE id=?`,
+        [realName, idNumber, realName, row.id],
+        function(updErr) {
+          if (updErr) return callback(updErr);
+          db.get(`SELECT * FROM citizens WHERE id = ?`, [row.id], callback);
+        });
     } else {
-      callback(null, row);
+      callback(null, row); // 已认证，直接返回
     }
   });
+}
+
+/**
+ * 查询所有系统用户（政务人员）
+ */
+function queryUsers(callback) {
+  const db = getDb();
+  db.all(`SELECT u.id, u.username, u.employee_id, u.role_key, u.display_name, u.department, r.role_name
+          FROM users u JOIN roles r ON u.role_key = r.role_key ORDER BY u.id`, callback);
+}
+
+/**
+ * 手动添加政务人员
+ */
+function createUser(data, callback) {
+  const db = getDb();
+  const { username, employee_id, role_key, display_name, department } = data;
+  if (!username || !employee_id || !role_key) return callback(new Error('缺少必填字段'));
+  db.run(`INSERT INTO users (username, employee_id, role_key, display_name, department, created_at)
+          VALUES (?,?,?,?,?,datetime('now'))`,
+    [username, employee_id, role_key, display_name || '', department || ''],
+    function(err) { callback(err, this.lastID); });
+}
+
+/**
+ * 批量导入政务人员
+ */
+function importUsers(users, callback) {
+  const db = getDb();
+  let imported = 0;
+  let errors = [];
+  let remaining = users.length;
+  if (remaining === 0) return callback(null, { imported: 0, errors: [] });
+  
+  users.forEach(u => {
+    db.run(`INSERT OR IGNORE INTO users (username, employee_id, role_key, display_name, department, created_at)
+            VALUES (?,?,?,?,?,datetime('now'))`,
+      [u.username || u.employee_id, u.employee_id, u.role_key || 'dispatcher', u.display_name || '', u.department || ''],
+      function(err) {
+        if (err) { errors.push({ user: u.employee_id, error: err.message }); }
+        else if (this.changes > 0) { imported++; }
+        remaining--;
+        if (remaining === 0) callback(null, { imported, errors });
+      });
+  });
+}
+
+/**
+ * 删除政务人员
+ */
+function deleteUser(id, callback) {
+  const db = getDb();
+  db.run(`DELETE FROM users WHERE id = ?`, [id], callback);
 }
 
 /**
@@ -871,6 +953,7 @@ module.exports = {
   queryPendingEvaluations,
   // 市民
   citizenLogin,
+  citizenRegister,
   // 流程模板
   queryFlowTemplates,
   getFlowTemplate,
@@ -878,4 +961,9 @@ module.exports = {
   deleteFlowTemplate,
   // 统计
   getStatistics,
+  // 人员管理
+  queryUsers,
+  createUser,
+  importUsers,
+  deleteUser,
 };

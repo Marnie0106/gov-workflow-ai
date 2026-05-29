@@ -24,20 +24,20 @@ function getStatusText(ticket) {
 
 function StatusBadge({ status }) {
   const map = {
-    '待派单':  { bg: '#FFF3E0', color: '#E67E22' },
-    '派单中':  { bg: '#F3E8FF', color: '#8E44AD' },
-    '已接受':  { bg: '#E8F0FE', color: '#1658AF' },
-    '处理中':  { bg: '#E8F5E9', color: '#27AE60' },
-    '已完结':  { bg: '#E8F0FE', color: '#1658AF' },
-    '已完成':  { bg: '#E8F0FE', color: '#1658AF' },
-    '处置中':  { bg: '#E8F5E9', color: '#27AE60' },
+    '待派单':  { bg: '#FFF8E6', color: '#D4880F' },
+    '派单中':  { bg: '#EDF2F7', color: '#1B3A5C' },
+    '已接受':  { bg: '#EDF2F7', color: '#1B3A5C' },
+    '处理中':  { bg: '#E8F5E9', color: '#1E8449' },
+    '已完结':  { bg: '#EDF2F7', color: '#1B3A5C' },
+    '已完成':  { bg: '#EDF2F7', color: '#1B3A5C' },
+    '处置中':  { bg: '#E8F5E9', color: '#1E8449' },
   };
-  const { bg = '#f5f7fa', color = '#909399' } = map[status] || {};
+  const { bg = '#F0F2F5', color = '#8C9AAF' } = map[status] || {};
   return (
     <span
       style={{
         background: bg, color,
-        padding: '3px 10px', borderRadius: '12px',
+        padding: '3px 10px', borderRadius: '2px',
         fontSize: '12px', fontWeight: '600',
       }}
     >
@@ -59,13 +59,12 @@ export function MessageCard({ messages, unreadCount, onOpen }) {
     <Card style={{ cursor: 'default' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '17px' }}>💬</span>
-          <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#1a2a3a' }}>留言提醒</h4>
+          <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#1A1A2E' }}>留言提醒</h4>
           {unread > 0 && (
             <span
               style={{
-                background: '#E74C3C', color: '#fff',
-                borderRadius: '10px', padding: '1px 7px',
+                background: '#C0392B', color: '#fff',
+                borderRadius: '2px', padding: '1px 7px',
                 fontSize: '11px', fontWeight: '700',
               }}
             >
@@ -80,26 +79,26 @@ export function MessageCard({ messages, unreadCount, onOpen }) {
         <div
           onClick={onOpen}
           style={{
-            background: '#f9fbff',
-            borderRadius: '10px',
+            background: '#F0F2F5',
+            borderRadius: '4px',
             padding: '12px 14px',
             cursor: 'pointer',
-            border: '1px solid #e8f0fe',
+            border: '1px solid #E8ECF0',
             transition: 'background 0.15s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#eef4ff')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#f9fbff')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#E8ECF0')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = '#F0F2F5')}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '12px', fontWeight: '600', color: '#1658AF' }}>
+            <span style={{ fontSize: '12px', fontWeight: '600', color: '#1B3A5C' }}>
               {latest.sender_name || '系统'}
             </span>
-            <span style={{ fontSize: '11px', color: '#c0c4cc' }}>· {fmtTime(latest.created_at)}</span>
+            <span style={{ fontSize: '11px', color: '#8C9AAF' }}>· {fmtTime(latest.created_at)}</span>
             {!latest.is_read && (
               <span
                 style={{
                   width: '7px', height: '7px',
-                  background: '#E74C3C', borderRadius: '50%',
+                  background: '#C0392B', borderRadius: '50%',
                   display: 'inline-block', marginLeft: '2px',
                 }}
               />
@@ -107,7 +106,7 @@ export function MessageCard({ messages, unreadCount, onOpen }) {
           </div>
           <div
             style={{
-              fontSize: '13px', color: '#606266',
+              fontSize: '13px', color: '#5A6A7A',
               overflow: 'hidden',
               display: '-webkit-box',
               WebkitLineClamp: 2,
@@ -119,7 +118,7 @@ export function MessageCard({ messages, unreadCount, onOpen }) {
           </div>
         </div>
       ) : (
-        <div style={{ textAlign: 'center', color: '#c0c4cc', fontSize: '13px', padding: '20px 0' }}>
+        <div style={{ textAlign: 'center', color: '#8C9AAF', fontSize: '13px', padding: '20px 0' }}>
           暂无留言
         </div>
       )}
@@ -192,14 +191,14 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
           <Btn size="sm" variant="ghost" onClick={onBack}>
             <FaArrowLeft size={11} /> 返回工作台
           </Btn>
-          <h3 style={{ fontSize: '17px', fontWeight: '700', color: '#1a2a3a' }}>留言 / 消息</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A2E' }}>留言 / 消息</h3>
         </div>
-        <p style={{ fontSize: '13px', color: '#909399', marginBottom: '16px' }}>
+        <p style={{ fontSize: '13px', color: '#8C9AAF', marginBottom: '16px' }}>
           选择工单，查看与处置人员的往来留言
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {tickets.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#c0c4cc', fontSize: '13px', padding: '40px 0' }}>
+            <div style={{ textAlign: 'center', color: '#8C9AAF', fontSize: '13px', padding: '40px 0' }}>
               暂无工单
             </div>
           ) : (
@@ -211,41 +210,41 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
                   onClick={() => handleSelectTicket(t)}
                   style={{
                     background: '#fff',
-                    borderRadius: '12px',
+                    borderRadius: '4px',
                     padding: '14px 18px',
                     cursor: 'pointer',
-                    border: '1px solid #e4e7ed',
-                    boxShadow: '0 1px 6px rgba(0,0,0,0.04)',
+                    border: '1px solid #E8ECF0',
+                    boxShadow: '0 1px 4px rgba(27,58,92,0.06)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
                     transition: 'box-shadow 0.2s, border-color 0.2s',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)';
-                    e.currentTarget.style.borderColor = '#d0e8ff';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(27,58,92,0.1)';
+                    e.currentTarget.style.borderColor = '#D9DEE6';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,0,0,0.04)';
-                    e.currentTarget.style.borderColor = '#e4e7ed';
+                    e.currentTarget.style.boxShadow = '0 1px 4px rgba(27,58,92,0.06)';
+                    e.currentTarget.style.borderColor = '#E8ECF0';
                   }}
                 >
                   <div
                     style={{
-                      width: '40px', height: '40px', borderRadius: '50%',
-                      background: '#e8f0fe', flexShrink: 0,
+                      width: '40px', height: '40px', borderRadius: '4px',
+                      background: '#EDF2F7', flexShrink: 0,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '18px',
+                      fontSize: '14px', fontWeight: '700', color: '#1B3A5C',
                     }}
                   >
-                    📄
+                    {t.id}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: '600', fontSize: '14px', color: '#1a2a3a', marginBottom: '4px' }}>
+                    <div style={{ fontWeight: '600', fontSize: '14px', color: '#1A1A2E', marginBottom: '4px' }}>
                       #{t.id} {t.title}
                     </div>
-                    <div style={{ fontSize: '12px', color: '#909399' }}>
-                      📍 {t.location} · {fmtTime(t.createdAt)}
+                    <div style={{ fontSize: '12px', color: '#8C9AAF' }}>
+                      {t.location} · {fmtTime(t.createdAt)}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -253,15 +252,15 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
                     {unreadN > 0 && (
                       <span
                         style={{
-                          background: '#E74C3C', color: '#fff',
-                          borderRadius: '10px', padding: '1px 7px',
+                          background: '#C0392B', color: '#fff',
+                          borderRadius: '2px', padding: '1px 7px',
                           fontSize: '11px', fontWeight: '700',
                         }}
                       >
                         {unreadN}
                       </span>
                     )}
-                    <span style={{ color: '#c0c4cc', fontSize: '16px' }}>›</span>
+                    <span style={{ color: '#8C9AAF', fontSize: '16px' }}>›</span>
                   </div>
                 </div>
               );
@@ -280,18 +279,18 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
         style={{
           display: 'flex', alignItems: 'center', gap: '10px',
           marginBottom: '16px', paddingBottom: '14px',
-          borderBottom: '1px solid #f0f0f0',
+          borderBottom: '1px solid #E8ECF0',
         }}
       >
         <Btn size="sm" variant="ghost" onClick={() => setSubView('list')}>
           <FaArrowLeft size={11} /> 返回列表
         </Btn>
         <div>
-          <div style={{ fontWeight: '700', fontSize: '15px', color: '#1a2a3a' }}>
+          <div style={{ fontWeight: '700', fontSize: '18px', color: '#1A1A2E' }}>
             工单 #{selTicket.id} · {selTicket.title}
           </div>
-          <div style={{ fontSize: '12px', color: '#909399' }}>
-            📍 {selTicket.location}
+          <div style={{ fontSize: '12px', color: '#8C9AAF' }}>
+            {selTicket.location}
           </div>
         </div>
         <div style={{ marginLeft: 'auto' }}>
@@ -310,7 +309,7 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
         }}
       >
         {threadMsgs.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#c0c4cc', fontSize: '13px', marginTop: '40px' }}>
+          <div style={{ textAlign: 'center', color: '#8C9AAF', fontSize: '13px', marginTop: '40px' }}>
             暂无消息，先发一条吧
           </div>
         ) : (
@@ -328,19 +327,19 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
                 {/* 头像 */}
                 <div
                   style={{
-                    width: '32px', height: '32px', borderRadius: '50%',
-                    background: isMine ? '#0A2B4E' : '#1658AF',
+                    width: '32px', height: '32px', borderRadius: '4px',
+                    background: isMine ? '#1B3A5C' : '#5A6A7A',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '14px', flexShrink: 0,
+                    fontSize: '12px', flexShrink: 0, color: '#fff', fontWeight: '700',
                   }}
                 >
-                  {isMine ? '👤' : '🔧'}
+                  {isMine ? '我' : '员'}
                 </div>
                 {/* 气泡 */}
                 <div style={{ maxWidth: '70%' }}>
                   <div
                     style={{
-                      fontSize: '11px', color: '#909399', marginBottom: '4px',
+                      fontSize: '11px', color: '#8C9AAF', marginBottom: '4px',
                       textAlign: isMine ? 'right' : 'left',
                     }}
                   >
@@ -348,17 +347,17 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
                   </div>
                   <div
                     style={{
-                      background: isMine ? '#0A2B4E' : '#f0f4ff',
-                      color: isMine ? '#fff' : '#303133',
-                      borderRadius: isMine ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                      background: isMine ? '#1B3A5C' : '#F0F4F8',
+                      color: isMine ? '#fff' : '#1A1A2E',
+                      borderRadius: '4px',
                       padding: '10px 14px',
-                      fontSize: '14px', lineHeight: 1.6,
+                      fontSize: '13px', lineHeight: 1.6,
                     }}
                   >
                     {msg.content}
                   </div>
                   {isMine && !msg.is_read && (
-                    <div style={{ textAlign: 'right', fontSize: '11px', color: '#c0c4cc', marginTop: '3px' }}>
+                    <div style={{ textAlign: 'right', fontSize: '11px', color: '#8C9AAF', marginTop: '3px' }}>
                       已发送
                     </div>
                   )}
@@ -374,8 +373,8 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
       <div
         style={{
           display: 'flex', gap: '10px', alignItems: 'flex-end',
-          background: '#f9f9f9', borderRadius: '12px', padding: '12px',
-          border: '1px solid #e4e7ed',
+          background: '#F0F2F5', borderRadius: '4px', padding: '12px',
+          border: '1px solid #D9DEE6',
         }}
       >
         <textarea
@@ -389,8 +388,8 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
           disabled={sending}
           style={{
             flex: 1, border: 'none', outline: 'none',
-            background: 'transparent', fontSize: '14px',
-            color: '#303133', resize: 'none', fontFamily: 'inherit',
+            background: 'transparent', fontSize: '13px',
+            color: '#1A1A2E', resize: 'none', fontFamily: 'inherit',
             lineHeight: 1.6,
           }}
         />
@@ -398,9 +397,9 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
           onClick={handleSend}
           disabled={!draft.trim() || sending}
           style={{
-            background: draft.trim() && !sending ? '#0A2B4E' : '#e4e7ed',
-            color: draft.trim() && !sending ? '#fff' : '#c0c4cc',
-            border: 'none', borderRadius: '8px',
+            background: draft.trim() && !sending ? '#1B3A5C' : '#D9DEE6',
+            color: draft.trim() && !sending ? '#fff' : '#8C9AAF',
+            border: 'none', borderRadius: '2px',
             padding: '8px 14px', cursor: draft.trim() && !sending ? 'pointer' : 'not-allowed',
             flexShrink: 0, transition: 'background 0.2s',
             display: 'flex', alignItems: 'center', gap: '5px',

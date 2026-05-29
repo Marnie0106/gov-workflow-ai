@@ -11,7 +11,7 @@ export function Modal({ open, onClose, title, children, width = '500px', footer 
       onClick={(e) => e.target === e.currentTarget && onClose?.()}
       style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.45)',
+        background: 'rgba(15,38,64,0.50)',
         zIndex: 2000,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '20px',
@@ -20,23 +20,24 @@ export function Modal({ open, onClose, title, children, width = '500px', footer 
       <div
         style={{
           background: '#fff',
-          borderRadius: '16px',
+          borderRadius: '4px',
           width, maxWidth: '100%',
           maxHeight: '90vh',
           display: 'flex', flexDirection: 'column',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          boxShadow: '0 12px 40px rgba(0,0,0,0.20)',
+          borderTop: '3px solid #1B3A5C',
         }}
       >
         {/* 标题栏 */}
         <div
           style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid #f0f0f0',
+            padding: '14px 20px',
+            borderBottom: '1px solid #E8ECF0',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             flexShrink: 0,
           }}
         >
-          <span style={{ fontWeight: '700', fontSize: '16px', color: '#1a2a3a' }}>
+          <span style={{ fontWeight: '600', fontSize: '15px', color: '#1A1A2E', letterSpacing:'0.5px' }}>
             {title}
           </span>
           {onClose && (
@@ -44,27 +45,27 @@ export function Modal({ open, onClose, title, children, width = '500px', footer 
               onClick={onClose}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: '#909399', padding: '4px', display: 'flex', alignItems: 'center',
+                color: '#8C9AAF', padding: '4px', display: 'flex', alignItems: 'center',
               }}
             >
-              <FaTimes size={16} />
+              <FaTimes size={14} />
             </button>
           )}
         </div>
 
         {/* 内容 */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
           {children}
         </div>
 
-        {/* 底部按钮区（可选） */}
+        {/* 底部按钮区 */}
         {footer && (
           <div
             style={{
-              padding: '14px 24px',
-              borderTop: '1px solid #f0f0f0',
-              display: 'flex', gap: '12px', justifyContent: 'flex-end',
-              flexShrink: 0,
+              padding: '12px 20px',
+              borderTop: '1px solid #E8ECF0',
+              display: 'flex', gap: '10px', justifyContent: 'flex-end',
+              flexShrink: 0, background:'#FAFBFC',
             }}
           >
             {footer}
@@ -92,9 +93,9 @@ export function StarRating({ value, onChange, readOnly = false }) {
           onMouseEnter={() => !readOnly && setHover(n)}
           onMouseLeave={() => !readOnly && setHover(0)}
           style={{
-            fontSize: '28px',
+            fontSize: '24px',
             cursor: readOnly ? 'default' : 'pointer',
-            color: n <= display ? '#F5A623' : '#e4e7ed',
+            color: n <= display ? '#C5A55A' : '#D9DEE6',
             transition: 'color 0.15s',
           }}
         >
@@ -102,7 +103,7 @@ export function StarRating({ value, onChange, readOnly = false }) {
         </span>
       ))}
       {!readOnly && display > 0 && (
-        <span style={{ marginLeft: '8px', color: '#606266', fontSize: '14px' }}>
+        <span style={{ marginLeft: '8px', color: '#5A6A7A', fontSize: '13px' }}>
           {LABELS[display]}
         </span>
       )}
@@ -115,20 +116,20 @@ export function StarRating({ value, onChange, readOnly = false }) {
 ───────────────────────────────────────────── */
 export function Btn({ children, onClick, variant = 'primary', size = 'md', disabled = false, style: extraStyle }) {
   const base = {
-    border: 'none', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer',
-    fontWeight: '600', transition: 'opacity 0.2s, transform 0.15s',
+    border: 'none', borderRadius: '2px', cursor: disabled ? 'not-allowed' : 'pointer',
+    fontWeight: '600', transition: 'opacity 0.2s, background 0.2s',
     opacity: disabled ? 0.6 : 1,
-    fontFamily: 'inherit',
+    fontFamily: 'inherit', letterSpacing: '0.5px',
     ...extraStyle,
   };
-  const sizes = { sm: '6px 14px', md: '9px 20px', lg: '12px 28px' };
-  const fontSize = { sm: '13px', md: '14px', lg: '16px' };
+  const sizes = { sm: '5px 12px', md: '7px 18px', lg: '10px 24px' };
+  const fontSize = { sm: '12px', md: '13px', lg: '14px' };
   const variants = {
-    primary:  { background: '#0A2B4E', color: '#fff' },
-    success:  { background: '#27AE60', color: '#fff' },
-    danger:   { background: '#E74C3C', color: '#fff' },
-    ghost:    { background: '#f5f7fa', color: '#606266', border: '1px solid #e4e7ed' },
-    warning:  { background: '#E67E22', color: '#fff' },
+    primary:  { background: '#1B3A5C', color: '#fff' },
+    success:  { background: '#1E8449', color: '#fff' },
+    danger:   { background: '#C0392B', color: '#fff' },
+    ghost:    { background: '#F0F2F5', color: '#5A6A7A', border: '1px solid #D9DEE6' },
+    warning:  { background: '#D4880F', color: '#fff' },
   };
 
   return (
@@ -146,14 +147,15 @@ export function Btn({ children, onClick, variant = 'primary', size = 'md', disab
 /* ─────────────────────────────────────────────
    卡片容器
 ───────────────────────────────────────────── */
-export function Card({ children, style: extra, padding = '20px 24px' }) {
+export function Card({ children, style: extra, padding = '16px 20px' }) {
   return (
     <div
       style={{
         background: '#fff',
-        borderRadius: '14px',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+        borderRadius: '4px',
+        boxShadow: '0 1px 4px rgba(27,58,92,0.06)',
         padding,
+        border: '1px solid #E8ECF0',
         ...extra,
       }}
     >
@@ -167,19 +169,19 @@ export function Card({ children, style: extra, padding = '20px 24px' }) {
 ───────────────────────────────────────────── */
 export function StatusBadge({ status }) {
   const map = {
-    '待处置':  { bg: '#FFF3E0', color: '#E67E22' },
-    '处置中':  { bg: '#E8F5E9', color: '#27AE60' },
-    '已完成':  { bg: '#E8F0FE', color: '#1658AF' },
-    '已派单':  { bg: '#F3E8FF', color: '#8E44AD' },
-    '已关闭':  { bg: '#FAFAFA', color: '#909399' },
+    '待处置':  { bg: '#FFF7E6', color: '#D4880F' },
+    '处置中':  { bg: '#E6F7ED', color: '#1E8449' },
+    '已完成':  { bg: '#E6F0FF', color: '#1B3A5C' },
+    '已派单':  { bg: '#F0E6FF', color: '#7C3AED' },
+    '已关闭':  { bg: '#F0F2F5', color: '#8C9AAF' },
   };
-  const { bg = '#f5f7fa', color = '#909399' } = map[status] || {};
+  const { bg = '#F0F2F5', color = '#8C9AAF' } = map[status] || {};
   return (
     <span
       style={{
         background: bg, color,
-        padding: '3px 10px', borderRadius: '12px',
-        fontSize: '12px', fontWeight: '600',
+        padding: '2px 8px', borderRadius: '2px',
+        fontSize: '11px', fontWeight: '600',
       }}
     >
       {status}

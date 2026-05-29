@@ -66,13 +66,37 @@ app.use('/api', authOptional);
 app.post('/api/citizen/login', (req, res) => {
   const { phone, code } = req.body;
   if (!phone || !code) return res.status(400).json({ error: '手机号和验证码不能为空' });
-  db.citizenLogin(phone, code, async (err, citizen) => {
-    if (err) return res.status(401).json({ error: err.message });
+  
+  // 先验证短信验证码
+  const cached = smsCache.get(phone);
+  if (!cached) return res.status(400).json({ error: '验证码不存在或已过期，请重新获取' });
+  if (Date.now() > cached.expireAt) { smsCache.delete(phone); return res.status(400).json({ error: '验证码已过期，请重新获取' }); }
+  if (cached.code !== String(code)) return res.status(401).json({ error: '验证码错误' });
+  smsCache.delete(phone); // 验证通过就删除，防止重用
+  
+  // 查数据库
+  const d = db.getDb();
+  d.get(`SELECT * FROM citizens WHERE phone = ?`, [phone], (err, citizen) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!citizen) return res.json({ success: true, need_register: true, phone, citizen: null });
+    if (!citizen.is_verified) return res.json({ success: true, need_register: true, phone, citizen: { id: citizen.id, phone: citizen.phone } });
+    db.createSession('citizen', citizen.id, 'citizen', citizen.real_name || citizen.nickname).then(session => {
+      res.json({ success: true, citizen: { id: citizen.id, phone: citizen.phone, nickname: citizen.nickname, realName: citizen.real_name, isVerified: true }, session });
+    }).catch(() => res.status(500).json({ error: '登录失败' }));
+  });
+});
+
+// 市民实名注册
+app.post('/api/citizen/register', (req, res) => {
+  const { phone, realName, idNumber } = req.body;
+  if (!phone || !realName || !idNumber) return res.status(400).json({ error: '手机号、姓名和身份证号不能为空' });
+  db.citizenRegister(phone, realName, idNumber, async (err, citizen) => {
+    if (err) return res.status(400).json({ error: err.message });
     try {
-      const session = await db.createSession('citizen', citizen.id, 'citizen', citizen.nickname);
-      res.json({ success: true, citizen: { id: citizen.id, phone: citizen.phone, nickname: citizen.nickname }, session });
+      const session = await db.createSession('citizen', citizen.id, 'citizen', citizen.real_name || citizen.nickname);
+      res.json({ success: true, citizen: { id: citizen.id, phone: citizen.phone, nickname: citizen.nickname, realName: citizen.real_name, isVerified: !!citizen.is_verified }, session });
     } catch (e) {
-      res.status(500).json({ error: '登录失败' });
+      res.status(500).json({ error: '注册失败' });
     }
   });
 });
@@ -138,19 +162,63 @@ app.get('/api/dispatchers', (req, res) => {
   });
 });
 
+// ─── 人员管理 API ───
+
+// 查询所有政务人员
+app.get('/api/users', (req, res) => {
+  db.queryUsers((err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows.map(r => ({
+      id: r.id,
+      username: r.username,
+      employeeId: r.employee_id,
+      roleKey: r.role_key,
+      roleName: r.role_name,
+      displayName: r.display_name,
+      department: r.department,
+    })));
+  });
+});
+
+// 手动添加政务人员
+app.post('/api/users', (req, res) => {
+  const { username, employee_id, role_key, display_name, department } = req.body;
+  db.createUser({ username, employee_id, role_key, display_name, department }, (err, id) => {
+    if (err) return res.status(400).json({ error: err.message });
+    res.json({ success: true, id });
+  });
+});
+
+// 批量导入政务人员
+app.post('/api/users/import', (req, res) => {
+  const { users } = req.body;
+  if (!users || !Array.isArray(users)) return res.status(400).json({ error: '请提供users数组' });
+  db.importUsers(users, (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, ...result });
+  });
+});
+
+// 删除政务人员
+app.delete('/api/users/:id', (req, res) => {
+  db.deleteUser(req.params.id, (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
 // ==================== 短信验证码 API ====================
 
-// 发送验证码（演示：固定返回123456，真实环境接短信平台）
+// 发送验证码（模拟真实短信：随机6位码，有效期5分钟）
 app.post('/api/sms/send', (req, res) => {
   const { phone } = req.body;
   if (!phone || !/^\d{11}$/.test(phone)) {
     return res.status(400).json({ error: '请输入有效的11位手机号' });
   }
-  const code = '123456'; // 演示固定验证码
+  const code = String(Math.floor(100000 + Math.random() * 900000)); // 随机6位
   smsCache.set(phone, { code, expireAt: Date.now() + 5 * 60 * 1000 });
-  // 实际生产应调用短信平台API
-  console.log(`[SMS] 向 ${phone} 发送验证码: ${code}`);
-  res.json({ success: true, message: '验证码已发送（演示系统：固定为123456）' });
+  console.log(`[SMS] → ${phone}  验证码: ${code}  (有效期5分钟)`);
+  res.json({ success: true, code, message: `验证码已生成（模拟短信：${code}）` });
 });
 
 // 验证验证码

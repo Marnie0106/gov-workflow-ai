@@ -27,13 +27,13 @@ function isYellow(field, value) {
 function FieldWrap({ label, yellow, hint, children, required }) {
   return (
     <div style={{ marginBottom: '18px' }}>
-      <label style={{ display:'block', fontSize:'13px', fontWeight:'600', color:'#606266', marginBottom:'6px' }}>
+      <label style={{ display:'block', fontSize:'13px', fontWeight:'600', color:'#5A6A7A', marginBottom:'6px' }}>
         {label}
-        {required && <span style={{ color:'#E74C3C', marginLeft:'3px' }}>*</span>}
+        {required && <span style={{ color:'#C0392B', marginLeft:'3px' }}>*</span>}
       </label>
       {children}
       {yellow && hint && (
-        <div style={{ display:'flex', alignItems:'center', gap:'5px', marginTop:'5px', fontSize:'12px', color:'#E67E22' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'5px', marginTop:'5px', fontSize:'12px', color:'#D4880F' }}>
           <FaExclamationTriangle size={11} />{hint}
         </div>
       )}
@@ -45,10 +45,10 @@ function FieldWrap({ label, yellow, hint, children, required }) {
    输入框公共样式
 ───────────────────────────────────────────── */
 const inputStyle = (yellow) => ({
-  width:'100%', padding:'10px 12px', borderRadius:'8px',
-  border:`1.5px solid ${yellow ? '#F5A623' : '#e4e7ed'}`,
-  background: yellow ? '#FFF3E0' : '#fff',
-  fontSize:'14px', color:'#303133', outline:'none',
+  width:'100%', padding:'10px 12px', borderRadius:'2px',
+  border:`1px solid ${yellow ? '#D4880F' : '#D9DEE6'}`,
+  background: yellow ? '#FFF8E6' : '#fff',
+  fontSize:'13px', color:'#1A1A2E', outline:'none',
   transition:'border-color 0.2s, background 0.2s',
   boxSizing:'border-box', resize:'vertical', fontFamily:'inherit',
 });
@@ -62,12 +62,12 @@ function VerifiedBadge({ phone }) {
   return (
     <div style={{
       display:'flex', alignItems:'center', gap:'8px', padding:'10px 14px',
-      background:'#f0fdf4', border:'1.5px solid #86efac', borderRadius:'8px',
-      fontSize:'14px', color:'#16a34a',
+      background:'#E8F5E9', border:'1px solid #A5D6A7', borderRadius:'4px',
+      fontSize:'13px', color:'#1E8449',
     }}>
       <FaShieldAlt size={15} />
       <span>已实名认证 · 手机号尾号 <strong>{masked}</strong></span>
-      <span style={{ marginLeft:'auto', fontSize:'11px', color:'#6b7280' }}>登录时已完成</span>
+      <span style={{ marginLeft:'auto', fontSize:'11px', color:'#8C9AAF' }}>登录时已完成</span>
     </div>
   );
 }
@@ -140,13 +140,13 @@ function PhotoUpload({ photos, onChange }) {
             <img
               src={p.url}
               alt={p.name}
-              style={{ width:'80px', height:'80px', objectFit:'cover', borderRadius:'8px', border:'1.5px solid #e4e7ed' }}
+              style={{ width:'80px', height:'80px', objectFit:'cover', borderRadius:'4px', border:'1px solid #D9DEE6' }}
             />
             {p.type === 'preview' && (
               <div style={{
                 position:'absolute', inset:0, background:'rgba(0,0,0,0.4)',
                 display:'flex', alignItems:'center', justifyContent:'center',
-                borderRadius:'8px',
+                borderRadius:'4px',
               }}>
                 <FaSpinner className="spin" size={18} color="#fff" />
               </div>
@@ -155,7 +155,7 @@ function PhotoUpload({ photos, onChange }) {
               onClick={() => removePhoto(i)}
               style={{
                 position:'absolute', top:'-6px', right:'-6px',
-                background:'#E74C3C', border:'none', borderRadius:'50%',
+                background:'#C0392B', border:'none', borderRadius:'50%',
                 width:'20px', height:'20px', cursor:'pointer',
                 display:'flex', alignItems:'center', justifyContent:'center',
                 color:'#fff',
@@ -170,10 +170,10 @@ function PhotoUpload({ photos, onChange }) {
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
             style={{
-              width:'80px', height:'80px', borderRadius:'8px',
-              border:'1.5px dashed #c0c4cc', background:'#fafafa',
+              width:'80px', height:'80px', borderRadius:'4px',
+              border:'1px dashed #D9DEE6', background:'#F0F2F5',
               display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-              gap:'4px', cursor: uploading ? 'not-allowed' : 'pointer', color:'#909399',
+              gap:'4px', cursor: uploading ? 'not-allowed' : 'pointer', color:'#8C9AAF',
             }}
           >
             <FaCamera size={18} />
@@ -185,10 +185,10 @@ function PhotoUpload({ photos, onChange }) {
         ref={inputRef} type="file" multiple accept="image/*" style={{ display:'none' }}
         onChange={handleFileChange}
       />
-      <div style={{ fontSize:'12px', color:'#c0c4cc' }}>
+      <div style={{ fontSize:'12px', color:'#8C9AAF' }}>
         {uploading ? '图片上传中…' : `最多上传3张照片（${uploadedCount}/3），支持 JPG/PNG/WEBP，单张不超过5MB`}
       </div>
-      {uploadError && <div style={{ fontSize:'12px', color:'#E74C3C', marginTop:'4px' }}>{uploadError}</div>}
+      {uploadError && <div style={{ fontSize:'12px', color:'#C0392B', marginTop:'4px' }}>{uploadError}</div>}
     </div>
   );
 }
@@ -287,11 +287,10 @@ export default function TicketForm({ citizenId, tickets, onSubmit, onCheckDuplic
         {/* ── 卡片标题 ── */}
         <div style={{
           display:'flex', alignItems:'center', gap:'8px',
-          marginBottom:'20px', paddingBottom:'14px', borderBottom:'1px solid #f5f5f5',
+          marginBottom:'20px', paddingBottom:'14px', borderBottom:'1px solid #E8ECF0',
         }}>
-          <span style={{ fontSize:'18px' }}>📝</span>
-          <h3 style={{ fontSize:'16px', fontWeight:'700', color:'#1a2a3a' }}>市民意见</h3>
-          <span style={{ marginLeft:'auto', fontSize:'12px', color:'#909399', fontWeight:'normal' }}>
+          <h3 style={{ fontSize:'18px', fontWeight:'700', color:'#1A1A2E' }}>市民意见</h3>
+          <span style={{ marginLeft:'auto', fontSize:'12px', color:'#8C9AAF', fontWeight:'normal' }}>
             请如实填写，信息将用于政府处置
           </span>
         </div>
@@ -316,7 +315,7 @@ export default function TicketForm({ citizenId, tickets, onSubmit, onCheckDuplic
             onBlur={() => setTouched(t => ({ ...t, event: true }))}
             style={inputStyle(eventYellow)}
           />
-          <div style={{ textAlign:'right', fontSize:'12px', color: event.trim().length < 5 ? '#E67E22' : '#c0c4cc', marginTop:'3px' }}>
+          <div style={{ textAlign:'right', fontSize:'12px', color: event.trim().length < 5 ? '#D4880F' : '#8C9AAF', marginTop:'3px' }}>
             {event.trim().length} 字{event.trim().length < 5 ? '（至少 5 字）' : ''}
           </div>
         </FieldWrap>
@@ -355,9 +354,9 @@ export default function TicketForm({ citizenId, tickets, onSubmit, onCheckDuplic
         {/* ── AI 提示 ── */}
         <FieldWrap label="AI 智能分析">
           <div style={{
-            padding:'10px 12px', borderRadius:'8px',
-            background:'#f0f7ff', border:'1.5px solid #d0e8ff',
-            fontSize:'14px', color:'#1658AF',
+            padding:'10px 12px', borderRadius:'4px',
+            background:'#EDF2F7', border:'1px solid #D9DEE6',
+            fontSize:'13px', color:'#1B3A5C',
             display:'flex', alignItems:'center', gap:'8px',
           }}>
             <FaRobot size={16} style={{ flexShrink:0 }} />
@@ -383,17 +382,17 @@ export default function TicketForm({ citizenId, tickets, onSubmit, onCheckDuplic
             重置
           </Btn>
           {submitOk && (
-            <span style={{ display:'flex', alignItems:'center', gap:'5px', color:'#27AE60', fontSize:'14px', fontWeight:'600' }}>
+            <span style={{ display:'flex', alignItems:'center', gap:'5px', color:'#1E8449', fontSize:'13px', fontWeight:'600' }}>
               <FaCheckCircle size={15} /> 意见已提交成功！
             </span>
           )}
           {submitError && (
-            <span style={{ display:'flex', alignItems:'center', gap:'5px', color:'#E74C3C', fontSize:'13px' }}>
+            <span style={{ display:'flex', alignItems:'center', gap:'5px', color:'#C0392B', fontSize:'13px' }}>
               <FaExclamationTriangle size={13} /> {submitError}
             </span>
           )}
           {triedSubmit && hasAnyYellow && !submitting && !submitOk && !submitError && (
-            <span style={{ display:'flex', alignItems:'center', gap:'5px', color:'#E67E22', fontSize:'13px' }}>
+            <span style={{ display:'flex', alignItems:'center', gap:'5px', color:'#D4880F', fontSize:'13px' }}>
               <FaExclamationTriangle size={13} /> 请完善标黄字段后再提交
             </span>
           )}
@@ -414,25 +413,25 @@ export default function TicketForm({ citizenId, tickets, onSubmit, onCheckDuplic
       >
         <div style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
           <div style={{
-            background:'#FFF3E0', border:'1px solid #F5A623',
-            borderRadius:'10px', padding:'14px 16px',
+            background:'#FFF8E6', border:'1px solid #D4880F',
+            borderRadius:'4px', padding:'14px 16px',
             display:'flex', alignItems:'flex-start', gap:'10px',
           }}>
-            <FaExclamationTriangle size={18} color="#E67E22" style={{ flexShrink:0, marginTop:'2px' }} />
+            <FaExclamationTriangle size={18} color="#D4880F" style={{ flexShrink:0, marginTop:'2px' }} />
             <div>
-              <div style={{ fontWeight:'600', color:'#E67E22', marginBottom:'4px' }}>1 小时内已有相似意见上报</div>
-              <div style={{ fontSize:'13px', color:'#606266' }}>您在该地点已有未完结的同类工单，重复提交可能导致资源浪费。</div>
+              <div style={{ fontWeight:'600', color:'#D4880F', marginBottom:'4px' }}>1 小时内已有相似意见上报</div>
+              <div style={{ fontSize:'13px', color:'#5A6A7A' }}>您在该地点已有未完结的同类工单，重复提交可能导致资源浪费。</div>
             </div>
           </div>
           {dupTicket && (
-            <div style={{ background:'#f9f9f9', borderRadius:'10px', padding:'14px 16px', fontSize:'13px', lineHeight:'1.8' }}>
+            <div style={{ background:'#F0F2F5', borderRadius:'4px', padding:'14px 16px', fontSize:'13px', lineHeight:'1.8' }}>
               <div><strong>已有工单 ID：</strong>#{dupTicket.id}</div>
               <div><strong>描述：</strong>{dupTicket.title}</div>
               <div><strong>地点：</strong>{dupTicket.location}</div>
               <div><strong>状态：</strong>{dupTicket.status}</div>
             </div>
           )}
-          <div style={{ fontSize:'13px', color:'#909399' }}>是否仍要继续提交新意见？</div>
+          <div style={{ fontSize:'13px', color:'#8C9AAF' }}>是否仍要继续提交新意见？</div>
         </div>
       </Modal>
 

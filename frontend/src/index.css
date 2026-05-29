@@ -1,3 +1,27 @@
+/* ===== 政务风格全局变量 ===== */
+:root {
+  --gov-primary: #1B3A5C;
+  --gov-primary-light: #2A5A8C;
+  --gov-primary-dark: #0F2640;
+  --gov-accent: #C5A55A;
+  --gov-accent-light: #D4B96E;
+  --gov-danger: #C0392B;
+  --gov-success: #1E8449;
+  --gov-warning: #D4880F;
+  --gov-bg: #F0F2F5;
+  --gov-bg-card: #FFFFFF;
+  --gov-text: #1A1A2E;
+  --gov-text-secondary: #5A6A7A;
+  --gov-text-muted: #8C9AAF;
+  --gov-border: #D9DEE6;
+  --gov-border-light: #E8ECF0;
+  --gov-shadow: 0 1px 4px rgba(27,58,92,0.08);
+  --gov-shadow-md: 0 2px 12px rgba(27,58,92,0.10);
+  --gov-shadow-lg: 0 8px 32px rgba(27,58,92,0.12);
+  --gov-radius: 4px;
+  --gov-radius-lg: 8px;
+}
+
 /* ===== 全局重置 ===== */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -11,11 +35,11 @@ html, body {
 }
 
 body {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  background: #F5F7FA;
-  color: #303133;
-  font-size: 16px;
-  line-height: 1.5;
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+  background: var(--gov-bg);
+  color: var(--gov-text);
+  font-size: 14px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -29,7 +53,7 @@ body {
 h1, h2, h3, h4, h5, h6 {
   margin: 0;
   font-weight: 600;
-  color: #303133;
+  color: var(--gov-text);
 }
 
 p {
@@ -43,4 +67,20 @@ button {
 
 input, select, textarea {
   font-family: inherit;
+}
+
+/* ===== 滚动条美化 ===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gov-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gov-text-muted);
 }
