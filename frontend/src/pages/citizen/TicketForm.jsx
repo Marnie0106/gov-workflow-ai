@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaRobot, FaExclamationTriangle, FaCheckCircle, FaSpinner,
          FaCamera, FaTimes, FaShieldAlt } from 'react-icons/fa';
 import { Btn, Card, Modal } from './ui';
-import { uploadPhotos } from '../../api';
+import { uploadPhotos, getImageUrl } from '../../api';
 
 /* ─────────────────────────────────────────────
    验证辅助
@@ -46,7 +46,7 @@ function FieldWrap({ label, yellow, hint, children, required }) {
 ───────────────────────────────────────────── */
 const inputStyle = (yellow) => ({
   width:'100%', padding:'10px 12px', borderRadius:'2px',
-  border:`1px solid ${yellow ? '#D4880F' : '#D9DEE6'}`,
+  border:`1px solid ${yellow ? '#D4880F' : '#E4E7ED'}`,
   background: yellow ? '#FFF8E6' : '#fff',
   fontSize:'13px', color:'#1A1A2E', outline:'none',
   transition:'border-color 0.2s, background 0.2s',
@@ -138,9 +138,9 @@ function PhotoUpload({ photos, onChange }) {
         {photos.map((p, i) => (
           <div key={i} style={{ position:'relative', width:'80px', height:'80px' }}>
             <img
-              src={p.url}
+              src={p.type === 'uploaded' ? getImageUrl(p.url) : p.url}
               alt={p.name}
-              style={{ width:'80px', height:'80px', objectFit:'cover', borderRadius:'4px', border:'1px solid #D9DEE6' }}
+              style={{ width:'80px', height:'80px', objectFit:'cover', borderRadius:'4px', border:'1px solid #E4E7ED' }}
             />
             {p.type === 'preview' && (
               <div style={{
@@ -171,7 +171,7 @@ function PhotoUpload({ photos, onChange }) {
             disabled={uploading}
             style={{
               width:'80px', height:'80px', borderRadius:'4px',
-              border:'1px dashed #D9DEE6', background:'#F0F2F5',
+              border:'1px dashed #E4E7ED', background:'#F5F7FA',
               display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
               gap:'4px', cursor: uploading ? 'not-allowed' : 'pointer', color:'#8C9AAF',
             }}
@@ -287,10 +287,10 @@ export default function TicketForm({ citizenId, tickets, onSubmit, onCheckDuplic
         {/* ── 卡片标题 ── */}
         <div style={{
           display:'flex', alignItems:'center', gap:'8px',
-          marginBottom:'20px', paddingBottom:'14px', borderBottom:'1px solid #E8ECF0',
+          marginBottom:'20px', paddingBottom:'14px', borderBottom:'1px solid #E4E7ED',
         }}>
           <h3 style={{ fontSize:'18px', fontWeight:'700', color:'#1A1A2E' }}>市民意见</h3>
-          <span style={{ marginLeft:'auto', fontSize:'12px', color:'#8C9AAF', fontWeight:'normal' }}>
+          <span style={{ marginLeft:'auto', fontSize:'14px', color:'#8C9AAF', fontWeight:'normal' }}>
             请如实填写，信息将用于政府处置
           </span>
         </div>
@@ -355,7 +355,7 @@ export default function TicketForm({ citizenId, tickets, onSubmit, onCheckDuplic
         <FieldWrap label="AI 智能分析">
           <div style={{
             padding:'10px 12px', borderRadius:'4px',
-            background:'#EDF2F7', border:'1px solid #D9DEE6',
+            background:'#EDF2F7', border:'1px solid #E4E7ED',
             fontSize:'13px', color:'#1B3A5C',
             display:'flex', alignItems:'center', gap:'8px',
           }}>
@@ -424,7 +424,7 @@ export default function TicketForm({ citizenId, tickets, onSubmit, onCheckDuplic
             </div>
           </div>
           {dupTicket && (
-            <div style={{ background:'#F0F2F5', borderRadius:'4px', padding:'14px 16px', fontSize:'13px', lineHeight:'1.8' }}>
+            <div style={{ background:'#F5F7FA', borderRadius:'4px', padding:'14px 16px', fontSize:'13px', lineHeight:'1.8' }}>
               <div><strong>已有工单 ID：</strong>#{dupTicket.id}</div>
               <div><strong>描述：</strong>{dupTicket.title}</div>
               <div><strong>地点：</strong>{dupTicket.location}</div>
@@ -435,7 +435,6 @@ export default function TicketForm({ citizenId, tickets, onSubmit, onCheckDuplic
         </div>
       </Modal>
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 1s linear infinite}`}</style>
     </>
   );
 }

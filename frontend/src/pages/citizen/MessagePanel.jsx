@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaArrowLeft, FaPaperPlane } from 'react-icons/fa';
-import { Card, Btn, fmtTime } from './ui';
+import { Card, Btn } from './ui';
+import { fmtTime, StatusBadge } from '../../components/Common';
 
 /* ─────────────────────────────────────────────
    状态显示映射
@@ -20,30 +21,6 @@ const DISPATCH_STATUS_TEXT = {
 
 function getStatusText(ticket) {
   return ticket.dispatch_status || STATUS_TEXT[ticket.status] || ticket.status;
-}
-
-function StatusBadge({ status }) {
-  const map = {
-    '待派单':  { bg: '#FFF8E6', color: '#D4880F' },
-    '派单中':  { bg: '#EDF2F7', color: '#1B3A5C' },
-    '已接受':  { bg: '#EDF2F7', color: '#1B3A5C' },
-    '处理中':  { bg: '#E8F5E9', color: '#1E8449' },
-    '已完结':  { bg: '#EDF2F7', color: '#1B3A5C' },
-    '已完成':  { bg: '#EDF2F7', color: '#1B3A5C' },
-    '处置中':  { bg: '#E8F5E9', color: '#1E8449' },
-  };
-  const { bg = '#F0F2F5', color = '#8C9AAF' } = map[status] || {};
-  return (
-    <span
-      style={{
-        background: bg, color,
-        padding: '3px 10px', borderRadius: '2px',
-        fontSize: '12px', fontWeight: '600',
-      }}
-    >
-      {status}
-    </span>
-  );
 }
 
 /* ─────────────────────────────────────────────
@@ -79,15 +56,15 @@ export function MessageCard({ messages, unreadCount, onOpen }) {
         <div
           onClick={onOpen}
           style={{
-            background: '#F0F2F5',
+            background: '#F5F7FA',
             borderRadius: '4px',
             padding: '12px 14px',
             cursor: 'pointer',
-            border: '1px solid #E8ECF0',
+            border: '1px solid #E4E7ED',
             transition: 'background 0.15s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#E8ECF0')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#F0F2F5')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#E4E7ED')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = '#F5F7FA')}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
             <span style={{ fontSize: '12px', fontWeight: '600', color: '#1B3A5C' }}>
@@ -213,8 +190,8 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
                     borderRadius: '4px',
                     padding: '14px 18px',
                     cursor: 'pointer',
-                    border: '1px solid #E8ECF0',
-                    boxShadow: '0 1px 4px rgba(27,58,92,0.06)',
+                    border: '1px solid #E4E7ED',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
@@ -222,11 +199,11 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.boxShadow = '0 2px 8px rgba(27,58,92,0.1)';
-                    e.currentTarget.style.borderColor = '#D9DEE6';
+                    e.currentTarget.style.borderColor = '#E4E7ED';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 1px 4px rgba(27,58,92,0.06)';
-                    e.currentTarget.style.borderColor = '#E8ECF0';
+                    e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)';
+                    e.currentTarget.style.borderColor = '#E4E7ED';
                   }}
                 >
                   <div
@@ -279,7 +256,7 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
         style={{
           display: 'flex', alignItems: 'center', gap: '10px',
           marginBottom: '16px', paddingBottom: '14px',
-          borderBottom: '1px solid #E8ECF0',
+          borderBottom: '1px solid #E4E7ED',
         }}
       >
         <Btn size="sm" variant="ghost" onClick={() => setSubView('list')}>
@@ -373,8 +350,8 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
       <div
         style={{
           display: 'flex', gap: '10px', alignItems: 'flex-end',
-          background: '#F0F2F5', borderRadius: '4px', padding: '12px',
-          border: '1px solid #D9DEE6',
+          background: '#F5F7FA', borderRadius: '4px', padding: '12px',
+          border: '1px solid #E4E7ED',
         }}
       >
         <textarea
@@ -397,7 +374,7 @@ export function MessageView({ tickets, messages, onAddMessage, onMarkRead, onBac
           onClick={handleSend}
           disabled={!draft.trim() || sending}
           style={{
-            background: draft.trim() && !sending ? '#1B3A5C' : '#D9DEE6',
+            background: draft.trim() && !sending ? '#1B3A5C' : '#E4E7ED',
             color: draft.trim() && !sending ? '#fff' : '#8C9AAF',
             border: 'none', borderRadius: '2px',
             padding: '8px 14px', cursor: draft.trim() && !sending ? 'pointer' : 'not-allowed',

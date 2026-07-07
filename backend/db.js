@@ -4,6 +4,41 @@
  */
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const crypto = require('crypto');
+require('dotenv').config();
+
+// 加密配置
+const ENC_KEY = process.env.ID_ENCRYPT_KEY || 'default-dev-key-please-change-in-production';
+const ENC_ALGO = 'aes-256-cbc';
+// 从密钥派生 32 字节 key + 16 字节 iv
+function getCipherKey() {
+  return crypto.createHash('sha256').update(ENC_KEY).digest();
+}
+function encrypt(text) {
+  if (!text) return text;
+  const key = getCipherKey();
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(ENC_ALGO, key, iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return iv.toString('hex') + ':' + encrypted; // 格式：iv:密文
+}
+function decrypt(ciphertext) {
+  if (!ciphertext || !ciphertext.includes(':')) return ciphertext; // 兼容旧明文数据
+  const key = getCipherKey();
+  const parts = ciphertext.split(':');
+  const iv = Buffer.from(parts[0], 'hex');
+  const encrypted = parts[1];
+  try {
+    const decipher = crypto.createDecipheriv(ENC_ALGO, key, iv);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (e) {
+    // 解密失败，返回脱敏标记
+    return '***';
+  }
+}
 
 // 数据库实例（单例）
 let _db = null;
@@ -418,11 +453,11 @@ function getDispatchers(callback) {
 // ========== 快捷查询方法 ==========
 
 /**
- * 查询工单列表（支持多条件过滤）
+ * 查询工单列表（支持多条件过滤 + 分页）
  */
 function queryTickets(filters = {}, callback) {
   const db = getDb();
-  const { citizenId, assignee, status, dispatch_status, keyword, startDate, endDate } = filters;
+  const { citizenId, assignee, status, dispatch_status, keyword, startDate, endDate, limit, offset } = filters;
   let sql = `SELECT * FROM tickets WHERE 1=1`;
   const params = [];
 
@@ -438,6 +473,8 @@ function queryTickets(filters = {}, callback) {
                         params.push(endDate, endDate); }
 
   sql += ` ORDER BY id DESC`;
+  if (limit) { sql += ` LIMIT ?`; params.push(parseInt(limit)); }
+  if (offset) { sql += ` OFFSET ?`; params.push(parseInt(offset)); }
   db.all(sql, params, (err, rows) => {
     if (err) return callback(err);
     const formatted = rows.map(row => ({
@@ -453,7 +490,7 @@ function queryTickets(filters = {}, callback) {
  */
 function createTicket(data, callback) {
   const db = getDb();
-  const { title, content, location, reporter, citizen_id, source, occurred_at } = data;
+  const { title, content, location, reporter, citizen_id, source, occurred_at, photo_urls } = data;
   const createdAt = new Date().toISOString();
   const finalOccurredAt = occurred_at || createdAt;
 
@@ -723,7 +760,7 @@ function citizenRegister(phone, realName, idNumber, callback) {
       // 新用户
       db.run(`INSERT INTO citizens (phone, nickname, real_name, id_number, is_verified, created_at)
               VALUES (?, ?, ?, ?, 1, datetime('now'))`,
-        [phone, realName, realName, idNumber],
+        [phone, realName, realName, encrypt(idNumber)],
         function(insErr) {
           if (insErr) return callback(insErr);
           db.get(`SELECT * FROM citizens WHERE id = ?`, [this.lastID], callback);
@@ -731,7 +768,7 @@ function citizenRegister(phone, realName, idNumber, callback) {
     } else if (!row.is_verified) {
       // 已存在但未认证 — 补全实名信息
       db.run(`UPDATE citizens SET real_name=?, id_number=?, is_verified=1, nickname=? WHERE id=?`,
-        [realName, idNumber, realName, row.id],
+        [realName, encrypt(idNumber), realName, row.id],
         function(updErr) {
           if (updErr) return callback(updErr);
           db.get(`SELECT * FROM citizens WHERE id = ?`, [row.id], callback);
@@ -851,7 +888,7 @@ function getStatistics(callback) {
   const stats = {};
   const done = (key, value) => {
     stats[key] = value;
-    if (Object.keys(stats).length === 7) callback(null, stats);
+    if (Object.keys(stats).length === 8) callback(null, stats);
   };
 
   // 1. 总工单数
@@ -920,10 +957,47 @@ function closeDb() {
   }
 }
 
+// ========== 问题热榜：按工单类型排名 ==========
+function getHotTopics(callback) {
+  const db = getDb();
+  const keywords = ['井盖', '垃圾', '路灯', '占道', '油烟', '噪音'];
+  db.all(`SELECT content, location FROM tickets`, (err, rows) => {
+    if (err) return callback(err);
+    const count = {};
+    keywords.forEach(k => { count[k] = 0; });
+    (rows || []).forEach(r => {
+      const c = (r.content || '') + (r.title || '');
+      let matched = false;
+      keywords.forEach(k => {
+        if (c.includes(k)) { count[k]++; matched = true; }
+      });
+      if (!matched) count['其他'] = (count['其他'] || 0) + 1;
+    });
+    const list = Object.entries(count)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+    callback(null, list);
+  });
+}
+
+// ========== 超时工单列表（预警墙用）==========
+function getTimeoutTickets(callback) {
+  const db = getDb();
+  db.all(`SELECT id, title, location, reporter, createdAt, dispatch_status, department FROM tickets WHERE isTimeout = 1 ORDER BY createdAt DESC LIMIT 10`, callback);
+}
+
+// ========== 获取所有评价文字（词云用）==========
+function getAllComments(callback) {
+  const db = getDb();
+  db.all(`SELECT comment FROM evaluations WHERE comment IS NOT NULL AND comment != ''`, callback);
+}
+
 module.exports = {
   getDb,
   initDatabase,
   closeDb,
+  encrypt,
+  decrypt,
   // 会话
   createSession,
   validateSession,
@@ -961,6 +1035,9 @@ module.exports = {
   deleteFlowTemplate,
   // 统计
   getStatistics,
+  getHotTopics,
+  getTimeoutTickets,
+  getAllComments,
   // 人员管理
   queryUsers,
   createUser,

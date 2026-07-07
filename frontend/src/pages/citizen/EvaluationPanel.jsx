@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FaArrowLeft, FaCheckCircle } from 'react-icons/fa';
-import { Card, Btn, Modal, StarRating, fmtTime } from './ui';
+import { Card, Btn, Modal, StarRating } from './ui';
+import { fmtTime, StatusBadge } from '../../components/Common';
 
 /* ─────────────────────────────────────────────
    状态显示映射
@@ -10,29 +11,6 @@ const STATUS_TEXT = {
   dispatched: '处置中',
   completed: '已完成',
 };
-
-function StatusBadge({ status }) {
-  const map = {
-    '待派单':  { bg: '#FFF8E6', color: '#D4880F' },
-    '派单中':  { bg: '#EDF2F7', color: '#1B3A5C' },
-    '已接受':  { bg: '#EDF2F7', color: '#1B3A5C' },
-    '处理中':  { bg: '#E8F5E9', color: '#1E8449' },
-    '已完结':  { bg: '#EDF2F7', color: '#1B3A5C' },
-    '已完成':  { bg: '#EDF2F7', color: '#1B3A5C' },
-  };
-  const { bg = '#F0F2F5', color = '#8C9AAF' } = map[status] || {};
-  return (
-    <span
-      style={{
-        background: bg, color,
-        padding: '3px 10px', borderRadius: '2px',
-        fontSize: '12px', fontWeight: '600',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
 
 /* ─────────────────────────────────────────────
    待评价入口卡片（主工作台右下角）
@@ -153,8 +131,8 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
           style={{
             textAlign: 'center', padding: '60px 24px',
             background: '#fff', borderRadius: '4px',
-            boxShadow: '0 1px 4px rgba(27,58,92,0.06)',
-            border: '1px solid #E8ECF0',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+            border: '1px solid #E4E7ED',
           }}
         >
           <div style={{ fontSize: '48px', marginBottom: '16px', color: '#1E8449' }}>&#10003;</div>
@@ -172,8 +150,8 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
                 background: '#fff',
                 borderRadius: '4px',
                 padding: '16px 20px',
-                border: '1px solid #E8ECF0',
-                boxShadow: '0 1px 4px rgba(27,58,92,0.06)',
+                border: '1px solid #E4E7ED',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
                 display: 'flex', alignItems: 'center', gap: '14px',
               }}
             >
@@ -231,7 +209,7 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
             {/* 工单摘要 */}
             <div
               style={{
-                background: '#F0F2F5', borderRadius: '4px',
+                background: '#F5F7FA', borderRadius: '4px',
                 padding: '12px 16px', fontSize: '13px', lineHeight: 1.8,
               }}
             >
@@ -265,13 +243,13 @@ export function EvaluationView({ tickets, evaluatedIds, pendingTickets, onSubmit
                 rows={3}
                 style={{
                   width: '100%', boxSizing: 'border-box',
-                  border: '1px solid #D9DEE6', borderRadius: '2px',
+                  border: '1px solid #E4E7ED', borderRadius: '2px',
                   padding: '10px 12px', fontSize: '13px', color: '#1A1A2E',
                   outline: 'none', resize: 'vertical', fontFamily: 'inherit',
                   lineHeight: 1.6,
                 }}
                 onFocus={(e) => (e.target.style.borderColor = '#1B3A5C')}
-                onBlur={(e)  => (e.target.style.borderColor = '#D9DEE6')}
+                onBlur={(e)  => (e.target.style.borderColor = '#E4E7ED')}
               />
             </div>
 

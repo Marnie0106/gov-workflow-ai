@@ -51,8 +51,31 @@ export const uploadPhotos = (formData) =>
 export const getTickets = (params = {}) =>
   api.get('/tickets', { params }).then(r => r.data);
 
+export const countTickets = (params = {}) =>
+  api.get('/tickets/count', { params }).then(r => r.data);
+
 export const getTicket = (id) =>
   api.get(`/tickets/${id}`).then(r => r.data);
+
+// 导出工单 CSV（直接下载文件）
+export const exportTicketsCSV = (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+  const session = sessionStorage.getItem('session');
+  let sessionId = '';
+  if (session) { try { sessionId = JSON.parse(session).sessionId || ''; } catch {} }
+  return fetch(`/api/tickets/export?${query}`, {
+    headers: { 'X-Session': sessionId },
+  }).then(r => r.blob()).then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `工单导出_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+};
 
 export const createTicket = (data) =>
   api.post('/tickets', data).then(r => r.data);
@@ -68,6 +91,9 @@ export const acceptTicket = (id, assignee) =>
 
 export const updateDispatchStatus = (id, dispatchStatus) =>
   api.patch(`/tickets/${id}/dispatch-status`, { dispatchStatus }).then(r => r.data);
+
+export const updateTicketFields = (id, updates) =>
+  api.patch(`/tickets/${id}`, updates).then(r => r.data);
 
 export const bindFlow = (id, data) =>
   api.put(`/tickets/${id}/flow`, data).then(r => r.data);
@@ -115,6 +141,18 @@ export const getPendingEvaluations = (citizenId) =>
 export const getStatistics = () =>
   api.get('/statistics').then(r => r.data);
 
+// ─── 问题热榜 ───
+export const getHotTopics = () =>
+  api.get('/hot-topics').then(r => r.data);
+
+// ─── 超时预警 ───
+export const getTimeoutTickets = () =>
+  api.get('/timeout-tickets').then(r => r.data);
+
+// ─── AI 周报摘要 ───
+export const getWeeklySummary = () =>
+  api.get('/ai/weekly-summary').then(r => r.data);
+
 // ─── 流程模板 ───
 export const getFlowTemplates = () =>
   api.get('/flow-templates').then(r => r.data);
@@ -134,6 +172,18 @@ export const getAISuggestion = (ticket) =>
 
 export const generateFlow = (description) =>
   api.post('/ai/generateFlow', { description }).then(r => r.data);
+
+// ─── 图片 URL 辅助：自动拼接 session 参数（绕过 uploads 鉴权）───
+export const getImageUrl = (relativeUrl) => {
+  if (!relativeUrl) return '';
+  const s = sessionStorage.getItem('session');
+  let sessionId = '';
+  if (s) {
+    try { sessionId = JSON.parse(s).sessionId || ''; } catch {}
+  }
+  const sep = relativeUrl.includes('?') ? '&' : '?';
+  return sessionId ? `${relativeUrl}${sep}session=${sessionId}` : relativeUrl;
+};
 
 export default api;
 

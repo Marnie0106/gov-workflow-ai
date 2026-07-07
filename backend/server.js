@@ -9,10 +9,59 @@ const bodyParser = require('body-parser');
 const axios = require('axios');
 const multer = require('multer');
 const fs = require('fs');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const PORT = 3001;
+
+// ==================== 并发保护：简单令牌桶限流 ====================
+// 限制每 IP 每秒最多 20 个请求，防止单 IP 打爆 SQLite
+const rateLimitMap = new Map();
+function rateLimiter(maxPerSec = 20) {
+  return (req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip) || { tokens: maxPerSec, last: now };
+    const elapsed = (now - entry.last) / 1000;
+    entry.tokens = Math.min(maxPerSec, entry.tokens + elapsed * maxPerSec);
+    entry.last = now;
+    if (entry.tokens < 1) {
+      return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
+    }
+    entry.tokens -= 1;
+    rateLimitMap.set(ip, entry);
+    next();
+  };
+}
+// 定期清理限流记录（每5分钟清理超过1分钟未活跃的IP）
+setInterval(() => {
+  const cutoff = Date.now() - 60000;
+  for (const [ip, entry] of rateLimitMap) {
+    if (entry.last < cutoff) rateLimitMap.delete(ip);
+  }
+}, 5 * 60 * 1000);
+
+// ==================== SQLite 写操作串行队列 ====================
+// 解决 SQLite 单写锁问题：所有写操作排队执行，避免 SQLITE_BUSY
+class WriteQueue {
+  constructor() {
+    this.queue = Promise.resolve();
+  }
+  enqueue(fn) {
+    return new Promise((resolve, reject) => {
+      this.queue = this.queue.then(() => {
+        return new Promise((innerResolve) => {
+          fn((err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+            innerResolve();
+          });
+        });
+      }).catch(() => {}); // 防止队列断裂
+    });
+  }
+}
+const writeQueue = new WriteQueue();
 
 // ==================== 文件上传配置 ====================
 const uploadDir = path.join(__dirname, 'uploads');
@@ -40,10 +89,20 @@ const smsCache = new Map();
 
 // 初始化数据库
 const db = require('./db');
+const { decrypt } = require('./db');
 db.initDatabase();
 
 app.use(cors());
 app.use(bodyParser.json());
+// 全局限流（读+写都限，但给得比较宽松：每秒20个请求）
+app.use(rateLimiter(20));
+
+// ==================== SQLite WAL 模式 ====================
+// WAL 模式下读写不互斥，大幅提升并发读能力
+const dbModule = require('./db');
+dbModule.getDb().run('PRAGMA journal_mode=WAL');
+dbModule.getDb().run('PRAGMA synchronous=NORMAL'); // 平衡安全性和性能
+dbModule.getDb().run('PRAGMA busy_timeout=30000');  // 30秒超时而非立即失败
 
 // ==================== 认证中间件 ====================
 
@@ -246,16 +305,72 @@ app.post('/api/upload', upload.array('photos', 3), (req, res) => {
   res.json({ success: true, urls });
 });
 
-// 静态服务 uploads 目录
-app.use('/uploads', express.static(uploadDir));
+// 静态服务 uploads 目录（需登录鉴权）
+app.use('/uploads', (req, res, next) => {
+  const sessionId = req.headers['x-session'] || req.query.session;
+  if (!sessionId) {
+    // 也允许通过 URL 参数 session=xxx 访问（方便 img src 传递）
+    return res.status(401).json({ error: '请先登录后查看图片' });
+  }
+  db.validateSession(sessionId).then(session => {
+    if (session) next();
+    else res.status(401).json({ error: '登录已过期，请重新登录' });
+  }).catch(() => res.status(401).json({ error: '鉴权失败' }));
+}, express.static(uploadDir));
 
 // ==================== 工单 API ====================
 
 app.get('/api/tickets', (req, res) => {
-  const { citizenId, assignee, status, dispatch_status, keyword, startDate, endDate } = req.query;
-  db.queryTickets({ citizenId, assignee, status, dispatch_status, keyword, startDate, endDate }, (err, rows) => {
+  const { citizenId, assignee, status, dispatch_status, keyword, startDate, endDate, limit, offset } = req.query;
+  db.queryTickets({ citizenId, assignee, status, dispatch_status, keyword, startDate, endDate, limit, offset }, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
+  });
+});
+
+// 查询工单总数（用于分页）
+app.get('/api/tickets/count', (req, res) => {
+  const { citizenId, assignee, status, dispatch_status, keyword, startDate, endDate } = req.query;
+  const conditions = [];
+  const params = [];
+  if (citizenId)      { conditions.push('citizen_id = ?');       params.push(citizenId); }
+  if (assignee)       { conditions.push('assignee = ?');         params.push(assignee); }
+  if (status)         { conditions.push('status = ?');             params.push(status); }
+  if (dispatch_status){ conditions.push('dispatch_status = ?');   params.push(dispatch_status); }
+  if (keyword)        { conditions.push('(title LIKE ? OR content LIKE ? OR location LIKE ?)');
+                        params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`); }
+  if (startDate)      { conditions.push('(createdAt >= ? OR occurred_at >= ?)');
+                        params.push(startDate, startDate); }
+  if (endDate)        { conditions.push('(createdAt <= ? OR occurred_at <= ?)');
+                        params.push(endDate, endDate); }
+  const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+  db.getDb().get(`SELECT COUNT(*) as cnt FROM tickets ${where}`, params, (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: row?.cnt || 0 });
+  });
+});
+
+// ==================== CSV 导出（必须在 :id 路由之前）====================
+app.get('/api/tickets/export', (req, res) => {
+  const { keyword, status, dispatch_status, startDate, endDate } = req.query;
+  db.queryTickets({ keyword, status, dispatch_status, startDate, endDate, limit: 10000 }, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const headers = ['ID', '标题', '内容', '地点', '状态', '派单状态', '派单部门', '处理人', '创建时间', '发生时间', '超时', '重复', '模糊'];
+    const csvLines = [headers.join(',')];
+    for (const r of (rows || [])) {
+      csvLines.push([
+        r.id,
+        `"${(r.title || '').replace(/"/g, '""')}"`,
+        `"${(r.content || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+        `"${(r.location || '').replace(/"/g, '""')}"`,
+        r.status || '', r.dispatch_status || '', r.department || '', r.assignee || '',
+        r.createdAt || '', r.occurred_at || '',
+        r.isTimeout ? '是' : '否', r.isDuplicate ? '是' : '否', r.isVague ? '是' : '否',
+      ].join(','));
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=tickets_${Date.now()}.csv`);
+    res.send('\ufeff' + csvLines.join('\n'));
   });
 });
 
@@ -274,16 +389,18 @@ app.post('/api/tickets', async (req, res) => {
   }
   db.createTicket({ title, content, location, reporter, citizen_id, source, occurred_at, photo_urls }, async (err, ticketId) => {
     if (err) return res.status(500).json({ error: err.message });
-    const { analyzeTicket, recommendDepartment } = require('./agents');
+    // 异步调用分类 Agent（ReAct 架构），不阻塞响应
+    const { classifyTicketAgent } = require('./agents');
     const ticketObj = { id: ticketId, title, content, location, reporter };
-    analyzeTicket(ticketObj).then(anomaly => {
-      recommendDepartment(ticketObj).then(deptRec => {
-        db.updateTicket(ticketId, {
-          isDuplicate: anomaly.isDuplicate ? 1 : 0,
-          isVague: anomaly.isVague ? 1 : 0,
-          department: deptRec.department
-        }, () => {});
-      }).catch(console.error);
+    classifyTicketAgent(ticketObj, db.getDb()).then(result => {
+      const updates = {};
+      if (result.department) updates.department = result.department;
+      if (result.isDuplicate !== undefined) updates.isDuplicate = result.isDuplicate ? 1 : 0;
+      if (result.isVague !== undefined) updates.isVague = result.isVague ? 1 : 0;
+      if (result.category) updates.category = result.category;
+      if (Object.keys(updates).length > 0) {
+        db.updateTicket(ticketId, updates, () => {});
+      }
     }).catch(console.error);
     res.json({ id: ticketId, success: true });
   });
@@ -335,6 +452,20 @@ app.patch('/api/tickets/:id/dispatch-status', (req, res) => {
   db.updateTicket(req.params.id, updates, err => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true });
+  });
+});
+
+// 管理员修改工单字段（分类/部门/状态等）
+app.patch('/api/tickets/:id', (req, res) => {
+  const allowed = ['department', 'category', 'status', 'dispatch_status', 'currentNode', 'assignee', 'isDuplicate', 'isVague'];
+  const updates = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) updates[key] = req.body[key];
+  }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: '没有提供可修改的字段' });
+  db.updateTicket(req.params.id, updates, err => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, updates });
   });
 });
 
@@ -478,6 +609,63 @@ app.get('/api/statistics', (req, res) => {
   });
 });
 
+// ==================== 问题热榜 ====================
+app.get('/api/hot-topics', (req, res) => {
+  db.getHotTopics((err, data) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(data);
+  });
+});
+
+// ==================== 超时预警 ====================
+app.get('/api/timeout-tickets', (req, res) => {
+  db.getTimeoutTickets((err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// ==================== AI 周报摘要 ====================
+app.get('/api/ai/weekly-summary', async (req, res) => {
+  try {
+    const stats = await new Promise((resolve, reject) => {
+      db.getStatistics((err, s) => err ? reject(err) : resolve(s));
+    });
+    const hotTopics = await new Promise((resolve, reject) => {
+      db.getHotTopics((err, d) => err ? reject(err) : resolve(d));
+    });
+
+    const top3 = (hotTopics || []).slice(0, 3).map(t => t.name).join('、');
+    const systemPrompt = `你是市容巡查系统的 AI 数据分析师。请根据提供的统计数据，生成一段 150 字以内的周报摘要，语气正式但亲民。用一段话概括：总工单量、完成率、最突出问题类型、满意度、是否需要关注超时工单。不要用列表格式，直接一段话。`;
+    const userPrompt = `本周数据：总工单${stats.total}条，已完成${stats.completed}条（完成率${stats.total > 0 ? ((stats.completed / stats.total) * 100).toFixed(1) : 0}%），待派单${stats.pending}条，处置中${stats.processing}条，超时${stats.timeout}条。问题热点前三：${top3 || '暂无数据'}。平均满意度${stats.ratingStats ? (Object.entries(stats.ratingStats).reduce((sum, [s, c]) => sum + s * c, 0) / Math.max(1, Object.values(stats.ratingStats).reduce((a, b) => a + b, 0))).toFixed(1) : 0}分。`;
+
+    const API_KEY = process.env.AI_API_KEY;
+    const response = await axios.post(process.env.AI_API_URL, {
+      model: process.env.AI_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.5,
+      max_tokens: 300
+    }, {
+      headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
+      timeout: 15000
+    });
+
+    const summary = response.data.choices[0].message.content;
+    res.json({ summary, generatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error('AI周报生成失败:', err.message);
+    // 兜底：返回统计数据的纯文本摘要
+    res.json({
+      summary: `本周共受理工单${stats?.total || 0}条，已完成${stats?.completed || 0}条，超时${stats?.timeout || 0}条需关注。`,
+      generatedAt: new Date().toISOString(),
+      fallback: true
+    });
+  }
+});
+
 // ==================== 流程模板 API ====================
 
 app.get('/api/flow-templates', (req, res) => {
@@ -516,17 +704,19 @@ app.delete('/api/flow-templates/:id', (req, res) => {
 app.post('/api/ai/suggest', async (req, res) => {
   const { ticket } = req.body;
   if (!ticket) return res.status(400).json({ error: '缺少工单信息' });
-  const systemPrompt = '你是政务工单处理专家。请根据工单信息和异常类型，给出具体的处理建议和下一步操作。用简洁的中文回答。';
-  const userPrompt = `工单标题：${ticket.title}，内容：${ticket.content}，位置：${ticket.location}。
-异常类型：超时=${ticket.isTimeout ? '是' : '否'}，重复=${ticket.isDuplicate ? '是' : '否'}，模糊=${ticket.isVague ? '是' : '否'}。请给出建议。`;
   try {
-    const API_KEY = process.env.AI_API_KEY;
-    const response = await axios.post(process.env.AI_API_URL, {
-      model: process.env.AI_MODEL,
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-      temperature: 0.7
-    }, { headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' } });
-    res.json({ suggestion: response.data.choices[0].message.content });
+    const { suggestDisposalAgent } = require('./agents');
+    const result = await suggestDisposalAgent(ticket, db.getDb());
+    // Agent 返回结构化 JSON，转为可读文本
+    if (result.suggestions && Array.isArray(result.suggestions)) {
+      const lines = result.suggestions.map(s => `${s.step}. ${s.detail}`);
+      if (result.estimatedHours) lines.push(`\n预计处理时长：约 ${result.estimatedHours} 小时`);
+      if (result.legalBasis) lines.push(`法律依据：${result.legalBasis}`);
+      if (result.referenceCases && result.referenceCases.length > 0) lines.push(`参考历史工单：#${result.referenceCases.join('、#')}`);
+      res.json({ suggestion: lines.join('\n'), ...result });
+    } else {
+      res.json({ suggestion: typeof result === 'string' ? result : '系统暂时无法生成建议，请人工处理。' });
+    }
   } catch (err) {
     console.error('AI建议失败:', err.message);
     res.json({ suggestion: '系统暂时无法生成建议，请人工处理。' });
@@ -536,20 +726,80 @@ app.post('/api/ai/suggest', async (req, res) => {
 app.post('/api/ai/generateFlow', async (req, res) => {
   const { description } = req.body;
   if (!description) return res.status(400).json({ error: '缺少描述' });
-  const systemPrompt = `你是政务流程设计专家。根据描述生成节点数组和边数组。输出严格JSON。
-{"nodes":[{"id":"1","label":"工单创建"}],"edges":[{"source":"1","target":"2"}]}`;
   try {
+    const { generateFlowAgent } = require('./agents');
+    const result = await generateFlowAgent(description);
+    if (result.nodes && result.nodes.length > 0) {
+      res.json(result);
+    } else {
+      // Agent 生成失败，返回兜底流程
+      res.json({
+        nodes: [
+          { id: '1', type: 'input', position: { x: 100, y: 50 }, data: { label: '工单创建' } },
+          { id: '2', type: 'default', position: { x: 100, y: 150 }, data: { label: 'AI分类派单' } },
+          { id: '3', type: 'default', position: { x: 100, y: 250 }, data: { label: '现场处置' } },
+          { id: '4', type: 'output', position: { x: 100, y: 350 }, data: { label: '办结归档' } },
+        ],
+        edges: [
+          { source: '1', target: '2' },
+          { source: '2', target: '3' },
+          { source: '3', target: '4' },
+        ],
+      });
+    }
+  } catch (err) {
+    console.error('AI生成流程失败:', err.message);
+    res.json({
+      nodes: [
+        { id: '1', type: 'input', position: { x: 100, y: 50 }, data: { label: '工单创建' } },
+        { id: '2', type: 'default', position: { x: 100, y: 150 }, data: { label: '派单' } },
+        { id: '3', type: 'output', position: { x: 100, y: 250 }, data: { label: '办结归档' } },
+      ],
+      edges: [{ source: '1', target: '2' }, { source: '2', target: '3' }],
+    });
+  }
+});
+
+// ==================== AI 助手聊天 ====================
+app.post('/api/ai/chat', async (req, res) => {
+  const { messages } = req.body;
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: '缺少对话消息' });
+  }
+  try {
+    const systemPrompt = `你是「小容助手」，市容巡查一体化系统的 AI 客服。
+你的职责：
+1. 解答系统使用问题（如何提交工单、如何查看进度、如何评价等）
+2. 介绍系统功能（四个角色工作台、AI分类派单、流程模板、领导看板等）
+3. 提供政务流程相关建议
+
+回答要求：
+- 语气亲切、简洁，每次回答控制在 150 字以内
+- 使用中文
+- 如果是系统操作问题，给出具体操作步骤
+- 如果问题超出系统范围，礼貌告知并引导用户联系管理员`;
+
+    const chatMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages.slice(-6)
+    ];
+
     const API_KEY = process.env.AI_API_KEY;
     const response = await axios.post(process.env.AI_API_URL, {
       model: process.env.AI_MODEL,
-      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: `流程：${description}` }],
-      temperature: 0.3
-    }, { headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' } });
-    let content = response.data.choices[0].message.content.replace(/```json/g, '').replace(/```/g, '').trim();
-    res.json(JSON.parse(content));
+      messages: chatMessages,
+      temperature: 0.7,
+      max_tokens: 300
+    }, {
+      headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
+      timeout: 15000
+    });
+
+    const reply = response.data?.choices?.[0]?.message?.content || '抱歉，我暂时无法回复，请稍后再试~';
+    res.json({ reply });
   } catch (err) {
-    console.error('AI生成流程失败:', err.message);
-    res.json({ nodes: [{ id: '1', label: '工单创建' }, { id: '2', label: '派单' }, { id: '3', label: '办结归档' }], edges: [{ source: '1', target: '2' }, { source: '2', target: '3' }] });
+    console.error('AI聊天失败:', err.message, err.response?.data || '');
+    res.json({ reply: '哎呀，网络好像不太稳定，等会儿再问我吧~' });
   }
 });
 

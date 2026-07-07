@@ -2,7 +2,7 @@ import React from 'react';
 import { FaTimes, FaStar, FaRegStar } from 'react-icons/fa';
 
 /* ─────────────────────────────────────────────
-   通用 Modal
+   通用 Modal（带淡入+上滑动画）
 ───────────────────────────────────────────── */
 export function Modal({ open, onClose, title, children, width = '500px', footer }) {
   if (!open) return null;
@@ -15,29 +15,31 @@ export function Modal({ open, onClose, title, children, width = '500px', footer 
         zIndex: 2000,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '20px',
+        animation: 'fadeIn 0.2s ease',
       }}
     >
       <div
         style={{
           background: '#fff',
-          borderRadius: '4px',
+          borderRadius: '12px',
           width, maxWidth: '100%',
           maxHeight: '90vh',
           display: 'flex', flexDirection: 'column',
-          boxShadow: '0 12px 40px rgba(0,0,0,0.20)',
-          borderTop: '3px solid #1B3A5C',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.18)',
+          borderTop: '3px solid var(--gov-primary, #3858E6)',
+          animation: 'slideUp 0.25s ease',
         }}
       >
         {/* 标题栏 */}
         <div
           style={{
             padding: '14px 20px',
-            borderBottom: '1px solid #E8ECF0',
+            borderBottom: '1px solid var(--gov-border, #E4E7ED)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             flexShrink: 0,
           }}
         >
-          <span style={{ fontWeight: '600', fontSize: '15px', color: '#1A1A2E', letterSpacing:'0.5px' }}>
+          <span style={{ fontWeight: '600', fontSize: '15px', color: 'var(--gov-text, #1A1A2E)', letterSpacing:'0.5px' }}>
             {title}
           </span>
           {onClose && (
@@ -45,7 +47,7 @@ export function Modal({ open, onClose, title, children, width = '500px', footer 
               onClick={onClose}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: '#8C9AAF', padding: '4px', display: 'flex', alignItems: 'center',
+                color: 'var(--gov-text-muted, #8C9AAF)', padding: '4px', display: 'flex', alignItems: 'center',
               }}
             >
               <FaTimes size={14} />
@@ -63,7 +65,7 @@ export function Modal({ open, onClose, title, children, width = '500px', footer 
           <div
             style={{
               padding: '12px 20px',
-              borderTop: '1px solid #E8ECF0',
+              borderTop: '1px solid var(--gov-border, #E4E7ED)',
               display: 'flex', gap: '10px', justifyContent: 'flex-end',
               flexShrink: 0, background:'#FAFBFC',
             }}
@@ -95,7 +97,7 @@ export function StarRating({ value, onChange, readOnly = false }) {
           style={{
             fontSize: '24px',
             cursor: readOnly ? 'default' : 'pointer',
-            color: n <= display ? '#C5A55A' : '#D9DEE6',
+            color: n <= display ? 'var(--gov-accent-gold, #C5A55A)' : 'var(--gov-border, #E4E7ED)',
             transition: 'color 0.15s',
           }}
         >
@@ -103,7 +105,7 @@ export function StarRating({ value, onChange, readOnly = false }) {
         </span>
       ))}
       {!readOnly && display > 0 && (
-        <span style={{ marginLeft: '8px', color: '#5A6A7A', fontSize: '13px' }}>
+        <span style={{ marginLeft: '8px', color: 'var(--gov-text-secondary, #5A6A7A)', fontSize: '13px' }}>
           {LABELS[display]}
         </span>
       )}
@@ -116,8 +118,8 @@ export function StarRating({ value, onChange, readOnly = false }) {
 ───────────────────────────────────────────── */
 export function Btn({ children, onClick, variant = 'primary', size = 'md', disabled = false, style: extraStyle }) {
   const base = {
-    border: 'none', borderRadius: '2px', cursor: disabled ? 'not-allowed' : 'pointer',
-    fontWeight: '600', transition: 'opacity 0.2s, background 0.2s',
+    border: 'none', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer',
+    fontWeight: '600', transition: 'all 0.2s',
     opacity: disabled ? 0.6 : 1,
     fontFamily: 'inherit', letterSpacing: '0.5px',
     ...extraStyle,
@@ -128,7 +130,7 @@ export function Btn({ children, onClick, variant = 'primary', size = 'md', disab
     primary:  { background: '#1B3A5C', color: '#fff' },
     success:  { background: '#1E8449', color: '#fff' },
     danger:   { background: '#C0392B', color: '#fff' },
-    ghost:    { background: '#F0F2F5', color: '#5A6A7A', border: '1px solid #D9DEE6' },
+    ghost:    { background: '#F5F7FA', color: '#5A6A7A', border: '1px solid #E4E7ED' },
     warning:  { background: '#D4880F', color: '#fff' },
   };
 
@@ -152,46 +154,15 @@ export function Card({ children, style: extra, padding = '16px 20px' }) {
     <div
       style={{
         background: '#fff',
-        borderRadius: '4px',
-        boxShadow: '0 1px 4px rgba(27,58,92,0.06)',
+        borderRadius: '12px',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
         padding,
-        border: '1px solid #E8ECF0',
+        border: '1px solid #EDF2F7',
+        transition: 'box-shadow 0.2s, transform 0.2s',
         ...extra,
       }}
     >
       {children}
     </div>
   );
-}
-
-/* ─────────────────────────────────────────────
-   工单状态 Badge
-───────────────────────────────────────────── */
-export function StatusBadge({ status }) {
-  const map = {
-    '待处置':  { bg: '#FFF7E6', color: '#D4880F' },
-    '处置中':  { bg: '#E6F7ED', color: '#1E8449' },
-    '已完成':  { bg: '#E6F0FF', color: '#1B3A5C' },
-    '已派单':  { bg: '#F0E6FF', color: '#7C3AED' },
-    '已关闭':  { bg: '#F0F2F5', color: '#8C9AAF' },
-  };
-  const { bg = '#F0F2F5', color = '#8C9AAF' } = map[status] || {};
-  return (
-    <span
-      style={{
-        background: bg, color,
-        padding: '2px 8px', borderRadius: '2px',
-        fontSize: '11px', fontWeight: '600',
-      }}
-    >
-      {status}
-    </span>
-  );
-}
-
-/* 时间格式化 */
-export function fmtTime(str) {
-  if (!str) return '';
-  const d = new Date(str);
-  return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
